@@ -12,13 +12,16 @@ require_relative 'lettermint/client'
 module Lettermint
   class << self
     def configure
-      @configuration ||= Configuration.new
-      yield @configuration if block_given?
-      @configuration
+      yield configuration if block_given?
+      configuration
     end
 
     def configuration
       @configuration ||= Configuration.new
+    end
+
+    def reset_configuration!
+      @configuration = nil
     end
   end
 end

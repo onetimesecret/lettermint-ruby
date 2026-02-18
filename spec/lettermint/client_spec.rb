@@ -12,6 +12,14 @@ RSpec.describe Lettermint::Client do
       expect(client.configuration.timeout).to eq(Lettermint::Configuration::DEFAULT_TIMEOUT)
     end
 
+    it 'raises ArgumentError when api_token is nil' do
+      expect { described_class.new(api_token: nil) }.to raise_error(ArgumentError, /API token cannot be empty/)
+    end
+
+    it 'raises ArgumentError when api_token is empty string' do
+      expect { described_class.new(api_token: '') }.to raise_error(ArgumentError, /API token cannot be empty/)
+    end
+
     it 'accepts custom base_url and timeout' do
       client = described_class.new(api_token: api_token, base_url: 'https://custom.co/v2', timeout: 60)
       expect(client.configuration.base_url).to eq('https://custom.co/v2')
@@ -23,6 +31,32 @@ RSpec.describe Lettermint::Client do
         c.timeout = 90
       end
       expect(client.configuration.timeout).to eq(90)
+    end
+
+    it 'falls back to Lettermint.configuration for defaults' do
+      Lettermint.configure do |c|
+        c.base_url = 'https://global.example.com/v1'
+        c.timeout = 45
+      end
+
+      client = described_class.new(api_token: api_token)
+      expect(client.configuration.base_url).to eq('https://global.example.com/v1')
+      expect(client.configuration.timeout).to eq(45)
+    ensure
+      Lettermint.reset_configuration!
+    end
+
+    it 'prefers explicit kwargs over global configuration' do
+      Lettermint.configure do |c|
+        c.base_url = 'https://global.example.com/v1'
+        c.timeout = 45
+      end
+
+      client = described_class.new(api_token: api_token, base_url: 'https://override.co/v1', timeout: 10)
+      expect(client.configuration.base_url).to eq('https://override.co/v1')
+      expect(client.configuration.timeout).to eq(10)
+    ensure
+      Lettermint.reset_configuration!
     end
   end
 

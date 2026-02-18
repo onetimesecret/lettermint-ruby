@@ -52,6 +52,11 @@ RSpec.describe Lettermint::Webhook do
         .to raise_error(Lettermint::WebhookVerificationError, /Invalid signature format/)
     end
 
+    it 'raises WebhookVerificationError for nil signature' do
+      expect { webhook.verify(payload, nil) }
+        .to raise_error(Lettermint::WebhookVerificationError, /Invalid signature format/)
+    end
+
     it 'raises TimestampToleranceError for old timestamp' do
       old_ts = Time.now.to_i - 600
       old_content = "#{old_ts}.#{payload}"
@@ -59,7 +64,7 @@ RSpec.describe Lettermint::Webhook do
       old_sig = "t=#{old_ts},v1=#{old_hash}"
 
       expect { webhook.verify(payload, old_sig) }
-        .to raise_error(Lettermint::TimestampToleranceError, /outside tolerance/)
+        .to raise_error(Lettermint::TimestampToleranceError, /too old or too far in the future/)
     end
 
     it 'raises TimestampToleranceError for future timestamp' do
@@ -84,7 +89,7 @@ RSpec.describe Lettermint::Webhook do
 
     it 'validates cross-referenced timestamp' do
       expect { webhook.verify(payload, signature_header, timestamp: timestamp + 1) }
-        .to raise_error(Lettermint::WebhookVerificationError, /Timestamp mismatch/)
+        .to raise_error(Lettermint::WebhookVerificationError, /Timestamp mismatch between header and signature/)
     end
 
     it 'accepts matching cross-referenced timestamp' do
@@ -155,6 +160,16 @@ RSpec.describe Lettermint::Webhook do
       headers = {
         'X-Lettermint-Signature' => signature_header,
         'X-Lettermint-Delivery' => 'not-a-number'
+      }
+
+      expect { webhook.verify_headers(headers, payload) }
+        .to raise_error(Lettermint::WebhookVerificationError, /Invalid/)
+    end
+
+    it 'raises for non-string delivery header (e.g. Array from Rack)' do
+      headers = {
+        'X-Lettermint-Signature' => signature_header,
+        'X-Lettermint-Delivery' => [timestamp.to_s]
       }
 
       expect { webhook.verify_headers(headers, payload) }

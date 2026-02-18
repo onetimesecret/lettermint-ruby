@@ -3,6 +3,9 @@
 module Lettermint
   SendEmailResponse = Data.define(:message_id, :status) do
     def self.from_hash(hash)
+      raise Lettermint::Error, 'Empty response body from API' if hash.nil?
+      raise Lettermint::Error, "Unexpected response type: #{hash.class}" unless hash.is_a?(Hash)
+
       new(message_id: hash['message_id'], status: hash['status'])
     end
   end

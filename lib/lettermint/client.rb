@@ -5,9 +5,11 @@ module Lettermint
     attr_reader :configuration
 
     def initialize(api_token:, base_url: nil, timeout: nil)
+      validate_api_token!(api_token)
+
       @configuration = Configuration.new
-      @configuration.base_url = base_url if base_url
-      @configuration.timeout = timeout if timeout
+      @configuration.base_url = base_url || Lettermint.configuration.base_url
+      @configuration.timeout = timeout || Lettermint.configuration.timeout
 
       yield @configuration if block_given?
 
@@ -20,6 +22,12 @@ module Lettermint
 
     def email
       EmailMessage.new(http_client: @http_client)
+    end
+
+    private
+
+    def validate_api_token!(token)
+      raise ArgumentError, 'API token cannot be empty' if token.nil? || token.to_s.strip.empty?
     end
   end
 end

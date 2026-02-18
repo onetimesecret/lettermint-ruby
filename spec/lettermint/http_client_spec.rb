@@ -106,6 +106,66 @@ RSpec.describe Lettermint::HttpClient do
         }
     end
 
+    it 'raises AuthenticationError on 401' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 401,
+          body: '{"message":"Invalid API token"}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::AuthenticationError) { |e|
+          expect(e.status_code).to eq(401)
+          expect(e.message).to eq('Invalid API token')
+        }
+    end
+
+    it 'raises AuthenticationError on 403' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 403,
+          body: '{"message":"Forbidden"}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::AuthenticationError) { |e|
+          expect(e.status_code).to eq(403)
+          expect(e.message).to eq('Forbidden')
+        }
+    end
+
+    it 'raises RateLimitError on 429' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 429,
+          body: '{"message":"Too many requests"}',
+          headers: { 'Content-Type' => 'application/json', 'Retry-After' => '30' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::RateLimitError) { |e|
+          expect(e.status_code).to eq(429)
+          expect(e.retry_after).to eq(30)
+          expect(e.message).to eq('Too many requests')
+        }
+    end
+
+    it 'raises RateLimitError with nil retry_after when header is absent' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 429,
+          body: '{"message":"Too many requests"}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::RateLimitError) { |e|
+          expect(e.retry_after).to be_nil
+        }
+    end
+
     it 'raises HttpRequestError on 500' do
       stub_request(:post, "#{base_url}/send")
         .to_return(

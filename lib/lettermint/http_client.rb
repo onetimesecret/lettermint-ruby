@@ -70,29 +70,33 @@ module Lettermint
       return response.body if response.success?
 
       body = response.body.is_a?(Hash) ? response.body : nil
-      raise_api_error(response.status, body)
+      raise_api_error(response.status, body, response.headers)
     end
 
-    def raise_api_error(status, body)
+    def raise_api_error(status, body, headers)
+      raise build_error(status, body, headers)
+    end
+
+    def build_error(status, body, headers) # rubocop:disable Metrics
+      msg = ->(key, fallback) { body&.dig(key) || fallback }
+
       case status
-      when 422
-        raise ValidationError.new(
-          message: body_field(body, 'message', 'Validation error'),
-          error_type: body_field(body, 'error', 'ValidationError'),
-          response_body: body
-        )
+      when 401, 403
+        AuthenticationError.new(message: msg['message', "HTTP #{status}"],
+                                status_code: status, response_body: body)
       when 400
-        raise ClientError.new(message: body_field(body, 'error', 'Unknown client error'), response_body: body)
+        ClientError.new(message: msg['error', 'Unknown client error'], response_body: body)
+      when 422
+        ValidationError.new(message: msg['message', 'Validation error'],
+                            error_type: msg['error', 'ValidationError'], response_body: body)
+      when 429
+        retry_after = headers && headers['Retry-After'] && Integer(headers['Retry-After'], exception: false)
+        RateLimitError.new(message: msg['message', 'Rate limit exceeded'],
+                           retry_after: retry_after, response_body: body)
       else
-        raise HttpRequestError.new(
-          message: body_field(body, 'message', "HTTP #{status}"),
-          status_code: status, response_body: body
-        )
+        HttpRequestError.new(message: msg['message', "HTTP #{status}"],
+                             status_code: status, response_body: body)
       end
-    end
-
-    def body_field(body, key, default)
-      body&.dig(key) || default
     end
   end
 end

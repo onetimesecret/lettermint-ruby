@@ -28,6 +28,21 @@ module Lettermint
     end
   end
 
+  class AuthenticationError < HttpRequestError
+    def initialize(message:, status_code:, response_body: nil)
+      super
+    end
+  end
+
+  class RateLimitError < HttpRequestError
+    attr_reader :retry_after
+
+    def initialize(message:, retry_after: nil, response_body: nil)
+      @retry_after = retry_after
+      super(message: message, status_code: 429, response_body: response_body)
+    end
+  end
+
   class TimeoutError < Error; end
 
   class WebhookVerificationError < Error; end
