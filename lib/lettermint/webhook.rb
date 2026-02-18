@@ -20,9 +20,7 @@ module Lettermint
     def verify(payload, signature, timestamp: nil)
       ts, sig_hash = parse_signature(signature)
 
-      if timestamp && timestamp != ts
-        raise WebhookVerificationError, "Timestamp mismatch: header=#{timestamp}, signature=#{ts}"
-      end
+      raise WebhookVerificationError, 'Timestamp mismatch between header and signature' if timestamp && timestamp != ts
 
       validate_timestamp(ts)
       validate_signature(payload, ts, sig_hash)
@@ -41,7 +39,7 @@ module Lettermint
       ts = begin
         Integer(delivery)
       rescue ArgumentError
-        raise WebhookVerificationError, "Invalid #{DELIVERY_HEADER} header: #{delivery}"
+        raise WebhookVerificationError, "Invalid #{DELIVERY_HEADER} header value"
       end
 
       verify(payload, signature, timestamp: ts)
@@ -54,11 +52,9 @@ module Lettermint
     private
 
     def parse_signature(signature)
-      parts = signature.split(',').each_with_object({}) do |part, hash|
-        key, value = part.split('=', 2)
-        hash[key.strip] = value&.strip if key && value
-      end
+      raise WebhookVerificationError, 'Invalid signature format' if signature.nil?
 
+      parts = split_signature_parts(signature)
       sig_ts = Integer(parts['t'])
       sig_hash = parts['v1']
       raise WebhookVerificationError, 'Invalid signature format' unless sig_hash
@@ -68,12 +64,18 @@ module Lettermint
       raise WebhookVerificationError, 'Invalid signature format'
     end
 
+    def split_signature_parts(signature)
+      signature.split(',').each_with_object({}) do |part, hash|
+        key, value = part.split('=', 2)
+        hash[key.strip] = value&.strip if key && value
+      end
+    end
+
     def validate_timestamp(sig_ts)
       difference = (Time.now.to_i - sig_ts).abs
       return if difference <= @tolerance
 
-      raise TimestampToleranceError,
-            "Timestamp #{sig_ts} is outside tolerance of #{@tolerance}s (difference: #{difference}s)"
+      raise TimestampToleranceError, 'Webhook timestamp is too old or too far in the future'
     end
 
     def validate_signature(payload, sig_ts, expected_hash)

@@ -214,6 +214,15 @@ Adjust the timestamp tolerance (default: 300 seconds):
 webhook = Lettermint::Webhook.new(secret: 'your-webhook-secret', tolerance: 600)
 ```
 
+### Replay Protection
+
+The webhook verifier validates timestamp freshness and HMAC integrity but does not
+track previously seen deliveries. Within the tolerance window (default 300 seconds),
+a captured request could be replayed. Your application should deduplicate incoming
+webhooks using the `x-lettermint-delivery` header value as an idempotency key -- for
+example, by recording processed delivery IDs in a database or cache and rejecting
+duplicates.
+
 ## Error Handling
 
 ```ruby

@@ -9,6 +9,14 @@ RSpec.describe Lettermint::SendEmailResponse do
       expect(resp.message_id).to eq('msg_123')
       expect(resp.status).to eq('queued')
     end
+
+    it 'raises Lettermint::Error when hash is nil' do
+      expect { described_class.from_hash(nil) }.to raise_error(Lettermint::Error, 'Empty response body from API')
+    end
+
+    it 'raises Lettermint::Error when hash is not a Hash' do
+      expect { described_class.from_hash('not a hash') }.to raise_error(Lettermint::Error, /Unexpected response type/)
+    end
   end
 
   describe 'immutability' do

@@ -151,6 +151,34 @@ RSpec.describe Lettermint::EmailMessage do
   end
 
   describe '#deliver' do
+    it 'raises ArgumentError when from is missing' do
+      expect { message.to('c@d.com').subject('Hi').html('<p>Hi</p>').deliver }
+        .to raise_error(ArgumentError, /Missing required field\(s\): from/)
+    end
+
+    it 'raises ArgumentError when to is missing' do
+      expect { message.from('a@b.com').subject('Hi').html('<p>Hi</p>').deliver }
+        .to raise_error(ArgumentError, /Missing required field\(s\): to/)
+    end
+
+    it 'raises ArgumentError when subject is missing' do
+      expect { message.from('a@b.com').to('c@d.com').html('<p>Hi</p>').deliver }
+        .to raise_error(ArgumentError, /Missing required field\(s\): subject/)
+    end
+
+    it 'raises ArgumentError listing all missing fields' do
+      expect { message.deliver }
+        .to raise_error(ArgumentError, /Missing required field\(s\): from, subject, to/)
+    end
+
+    it 'resets state after validation failure' do
+      expect { message.deliver }.to raise_error(ArgumentError)
+
+      stub_send(base_url)
+      result = message.from('a@b.com').to('c@d.com').subject('Hi').html('<p>Hi</p>').deliver
+      expect(result).to be_a(Lettermint::SendEmailResponse)
+    end
+
     it 'returns a SendEmailResponse' do
       stub_send(base_url)
 
@@ -184,6 +212,15 @@ RSpec.describe Lettermint::EmailMessage do
 
       result = message.from('x@y.com').to('z@w.com').subject('Retry').html('<p>ok</p>').deliver
       expect(result.message_id).to eq('msg_2')
+    end
+
+    it 'raises when API returns empty body' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(status: 202, body: '', headers: { 'Content-Type' => 'application/json' })
+
+      expect do
+        message.from('a@b.com').to('c@d.com').subject('Hi').html('<p>Hi</p>').deliver
+      end.to raise_error(Lettermint::Error, /Empty response body/)
     end
 
     it 'propagates errors from http_client' do
