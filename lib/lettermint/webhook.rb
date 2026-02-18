@@ -38,7 +38,7 @@ module Lettermint
 
       ts = begin
         Integer(delivery)
-      rescue ArgumentError
+      rescue ArgumentError, TypeError
         raise WebhookVerificationError, "Invalid #{DELIVERY_HEADER} header value"
       end
 

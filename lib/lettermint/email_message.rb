@@ -108,7 +108,7 @@ module Lettermint
 
     def validate_required_fields
       missing = %i[from subject].select { |f| blank?(f) }
-      missing << :to if @payload[:to].nil? || @payload[:to].empty?
+      missing << :to if @payload[:to].nil? || @payload[:to].none? { |e| e.is_a?(String) && !e.strip.empty? }
       return if missing.empty?
 
       raise ArgumentError, "Missing required field(s): #{missing.join(', ')}"

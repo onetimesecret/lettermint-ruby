@@ -161,6 +161,16 @@ RSpec.describe Lettermint::EmailMessage do
         .to raise_error(ArgumentError, /Missing required field\(s\): to/)
     end
 
+    it 'raises ArgumentError when to contains only empty strings' do
+      expect { message.from('a@b.com').to('').subject('Hi').html('<p>Hi</p>').deliver }
+        .to raise_error(ArgumentError, /Missing required field\(s\): to/)
+    end
+
+    it 'raises ArgumentError when to contains only whitespace strings' do
+      expect { message.from('a@b.com').to('  ', "\t").subject('Hi').html('<p>Hi</p>').deliver }
+        .to raise_error(ArgumentError, /Missing required field\(s\): to/)
+    end
+
     it 'raises ArgumentError when subject is missing' do
       expect { message.from('a@b.com').to('c@d.com').html('<p>Hi</p>').deliver }
         .to raise_error(ArgumentError, /Missing required field\(s\): subject/)

@@ -165,6 +165,16 @@ RSpec.describe Lettermint::Webhook do
       expect { webhook.verify_headers(headers, payload) }
         .to raise_error(Lettermint::WebhookVerificationError, /Invalid/)
     end
+
+    it 'raises for non-string delivery header (e.g. Array from Rack)' do
+      headers = {
+        'X-Lettermint-Signature' => signature_header,
+        'X-Lettermint-Delivery' => [timestamp.to_s]
+      }
+
+      expect { webhook.verify_headers(headers, payload) }
+        .to raise_error(Lettermint::WebhookVerificationError, /Invalid/)
+    end
   end
 
   describe '.verify_signature' do
