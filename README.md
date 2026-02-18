@@ -2,9 +2,9 @@
 
 [![Gem Version](https://img.shields.io/gem/v/lettermint?style=flat-square)](https://rubygems.org/gems/lettermint)
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-red?style=flat-square)](https://www.ruby-lang.org)
-[![License](https://img.shields.io/github/license/onetimesecret/lettermint-ruby?style=flat-square)](https://github.com/onetimesecret/lettermint-ruby/blob/main/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/onetimesecret/lettermint-ruby/blob/main/LICENSE)
 
-Official Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
+Unofficial Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
 
 ## Installation
 
