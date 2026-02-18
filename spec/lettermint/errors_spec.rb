@@ -66,6 +66,44 @@ RSpec.describe 'Lettermint error hierarchy' do
     end
   end
 
+  describe Lettermint::AuthenticationError do
+    subject(:error) { described_class.new(message: 'Unauthorized', status_code: 401) }
+
+    it 'inherits from HttpRequestError' do
+      expect(error).to be_a(Lettermint::HttpRequestError)
+    end
+
+    it 'exposes the status code' do
+      expect(error.status_code).to eq(401)
+    end
+
+    it 'works for 403' do
+      err = described_class.new(message: 'Forbidden', status_code: 403)
+      expect(err.status_code).to eq(403)
+    end
+  end
+
+  describe Lettermint::RateLimitError do
+    subject(:error) { described_class.new(message: 'Rate limit exceeded', retry_after: 60) }
+
+    it 'inherits from HttpRequestError' do
+      expect(error).to be_a(Lettermint::HttpRequestError)
+    end
+
+    it 'hardcodes status_code to 429' do
+      expect(error.status_code).to eq(429)
+    end
+
+    it 'exposes retry_after' do
+      expect(error.retry_after).to eq(60)
+    end
+
+    it 'defaults retry_after to nil' do
+      err = described_class.new(message: 'Rate limit exceeded')
+      expect(err.retry_after).to be_nil
+    end
+  end
+
   describe Lettermint::TimeoutError do
     it 'inherits from Lettermint::Error' do
       expect(described_class.new('timeout')).to be_a(Lettermint::Error)

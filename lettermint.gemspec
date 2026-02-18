@@ -19,11 +19,13 @@ Gem::Specification.new do |spec|
   spec.metadata['source_code_uri'] = spec.homepage
   spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/main/CHANGELOG.md"
   spec.metadata['rubygems_mfa_required'] = 'true'
+  spec.metadata['allowed_push_host'] = 'https://rubygems.org'
 
   spec.files = Dir.chdir(__dir__) do
     `git ls-files -z`.split("\x0").reject do |f|
       (File.expand_path(f) == __FILE__) ||
-        f.start_with?('spec/', 'examples/', '.git', '.rubocop', 'Rakefile', 'Gemfile')
+        f.start_with?('spec/', 'examples/', '.git', '.rubocop', 'Rakefile', 'Gemfile',
+                      'CLAUDE', '.pre-commit', '.rspec')
     end
   end
 

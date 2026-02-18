@@ -2,9 +2,9 @@
 
 [![Gem Version](https://img.shields.io/gem/v/lettermint?style=flat-square)](https://rubygems.org/gems/lettermint)
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-red?style=flat-square)](https://www.ruby-lang.org)
-[![License](https://img.shields.io/github/license/onetimesecret/lettermint-ruby?style=flat-square)](https://github.com/onetimesecret/lettermint-ruby/blob/main/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/onetimesecret/lettermint-ruby/blob/main/LICENSE)
 
-Official Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
+Unofficial Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
 
 ## Installation
 
@@ -214,6 +214,15 @@ Adjust the timestamp tolerance (default: 300 seconds):
 webhook = Lettermint::Webhook.new(secret: 'your-webhook-secret', tolerance: 600)
 ```
 
+### Replay Protection
+
+The webhook verifier validates timestamp freshness and HMAC integrity but does not
+track previously seen deliveries. Within the tolerance window (default 300 seconds),
+a captured request could be replayed. Your application should deduplicate incoming
+webhooks using the `x-lettermint-delivery` header value as an idempotency key -- for
+example, by recording processed delivery IDs in a database or cache and rejecting
+duplicates.
+
 ## Error Handling
 
 ```ruby
@@ -227,6 +236,12 @@ begin
     .to('recipient@example.com')
     .subject('Hello')
     .deliver
+rescue Lettermint::AuthenticationError => e
+  # 401/403 errors (invalid or revoked token)
+  puts "Auth error #{e.status_code}: #{e.message}"
+rescue Lettermint::RateLimitError => e
+  # 429 errors
+  puts "Rate limited, retry after: #{e.retry_after}s"
 rescue Lettermint::ValidationError => e
   # 422 errors (e.g., daily limit exceeded)
   puts "Validation error: #{e.error_type}"
@@ -261,21 +276,33 @@ end
 
 ## Configuration
 
-### Custom Base URL
+### Global Configuration
+
+Set defaults once at application boot (e.g., in a Rails initializer):
 
 ```ruby
-client = Lettermint::Client.new(
-  api_token: 'your-api-token',
-  base_url: 'https://custom.api.com/v1'
-)
+Lettermint.configure do |config|
+  config.base_url = 'https://custom.api.com/v1'
+  config.timeout = 60
+end
 ```
 
-### Custom Timeout
+All clients created afterward inherit these defaults:
+
+```ruby
+client = Lettermint::Client.new(api_token: 'your-api-token')
+# Uses the global base_url and timeout
+```
+
+### Per-Client Overrides
+
+Explicit keyword arguments take precedence over global configuration:
 
 ```ruby
 client = Lettermint::Client.new(
   api_token: 'your-api-token',
-  timeout: 60
+  base_url: 'https://other.api.com/v1',
+  timeout: 10
 )
 ```
 
