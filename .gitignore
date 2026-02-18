@@ -10,3 +10,5 @@
 *.rbc
 Gemfile.lock
 .rspec_status
+.claude
+.serena
