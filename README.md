@@ -236,6 +236,12 @@ begin
     .to('recipient@example.com')
     .subject('Hello')
     .deliver
+rescue Lettermint::AuthenticationError => e
+  # 401/403 errors (invalid or revoked token)
+  puts "Auth error #{e.status_code}: #{e.message}"
+rescue Lettermint::RateLimitError => e
+  # 429 errors
+  puts "Rate limited, retry after: #{e.retry_after}s"
 rescue Lettermint::ValidationError => e
   # 422 errors (e.g., daily limit exceeded)
   puts "Validation error: #{e.error_type}"
@@ -270,21 +276,33 @@ end
 
 ## Configuration
 
-### Custom Base URL
+### Global Configuration
+
+Set defaults once at application boot (e.g., in a Rails initializer):
 
 ```ruby
-client = Lettermint::Client.new(
-  api_token: 'your-api-token',
-  base_url: 'https://custom.api.com/v1'
-)
+Lettermint.configure do |config|
+  config.base_url = 'https://custom.api.com/v1'
+  config.timeout = 60
+end
 ```
 
-### Custom Timeout
+All clients created afterward inherit these defaults:
+
+```ruby
+client = Lettermint::Client.new(api_token: 'your-api-token')
+# Uses the global base_url and timeout
+```
+
+### Per-Client Overrides
+
+Explicit keyword arguments take precedence over global configuration:
 
 ```ruby
 client = Lettermint::Client.new(
   api_token: 'your-api-token',
-  timeout: 60
+  base_url: 'https://other.api.com/v1',
+  timeout: 10
 )
 ```
 
