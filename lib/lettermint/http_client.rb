@@ -4,7 +4,7 @@ require 'faraday'
 
 module Lettermint
   class HttpClient
-    def initialize(api_token:, base_url:, timeout:)
+    def initialize(api_token:, base_url:, timeout:, auth_scheme: :project)
       normalized_url = "#{base_url.chomp('/')}/"
       @connection = Faraday.new(url: normalized_url) do |f|
         f.request :json
@@ -14,7 +14,7 @@ module Lettermint
         f.headers = {
           'Content-Type' => 'application/json',
           'Accept' => 'application/json',
-          'x-lettermint-token' => api_token,
+          **auth_headers(api_token, auth_scheme),
           'User-Agent' => "Lettermint/#{Lettermint::VERSION} (Ruby; ruby #{RUBY_VERSION})"
         }
       end
@@ -56,6 +56,14 @@ module Lettermint
     end
 
     private
+
+    def auth_headers(token, scheme)
+      case scheme
+      when :project then { 'x-lettermint-token' => token }
+      when :team    then { 'Authorization' => "Bearer #{token}" }
+      else raise ArgumentError, "Unknown auth_scheme: #{scheme}"
+      end
+    end
 
     def with_error_handling
       response = yield
