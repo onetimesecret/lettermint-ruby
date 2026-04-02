@@ -178,7 +178,33 @@ RSpec.describe Lettermint::EmailMessage do
 
     it 'raises ArgumentError listing all missing fields' do
       expect { message.deliver }
-        .to raise_error(ArgumentError, /Missing required field\(s\): from, subject, to/)
+        .to raise_error(ArgumentError, /Missing required field\(s\): from, subject, to, body/)
+    end
+
+    it 'raises ArgumentError when neither html nor text is provided' do
+      expect { message.from('a@b.com').to('c@d.com').subject('Hi').deliver }
+        .to raise_error(ArgumentError, /Missing required field\(s\): body/)
+    end
+
+    it 'succeeds with only html body' do
+      stub_send(base_url)
+
+      result = message.from('a@b.com').to('c@d.com').subject('Hi').html('<p>Hi</p>').deliver
+      expect(result).to be_a(Lettermint::SendEmailResponse)
+    end
+
+    it 'succeeds with only text body' do
+      stub_send(base_url)
+
+      result = message.from('a@b.com').to('c@d.com').subject('Hi').text('Hello').deliver
+      expect(result).to be_a(Lettermint::SendEmailResponse)
+    end
+
+    it 'succeeds with both html and text body' do
+      stub_send(base_url)
+
+      result = message.from('a@b.com').to('c@d.com').subject('Hi').html('<p>Hi</p>').text('Hello').deliver
+      expect(result).to be_a(Lettermint::SendEmailResponse)
     end
 
     it 'resets state after validation failure' do

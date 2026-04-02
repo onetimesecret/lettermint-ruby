@@ -187,11 +187,13 @@ RSpec.describe Lettermint::HttpClient do
         .to raise_error(Lettermint::TimeoutError, /Request timeout/)
     end
 
-    it 'raises Error on connection failure' do
+    it 'raises ConnectionError on connection failure' do
       stub_request(:post, "#{base_url}/send").to_raise(Faraday::ConnectionFailed.new('refused'))
 
       expect { client.post(path: '/send', data: {}) }
-        .to raise_error(Lettermint::Error, /refused/)
+        .to raise_error(Lettermint::ConnectionError, /refused/) { |e|
+          expect(e.original_exception).to be_a(Faraday::ConnectionFailed)
+        }
     end
   end
 
