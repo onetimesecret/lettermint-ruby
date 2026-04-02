@@ -30,7 +30,7 @@ The SDK has two independent subsystems sharing a common error hierarchy:
 **Raw HTTP access** — `Client#get`, `#post`, `#put`, `#delete`
 - Delegates to `HttpClient` for accessing arbitrary API endpoints not yet wrapped in typed methods
 - Returns raw `Hash` (parsed JSON); typed errors bubble up unchanged
-- Example: `client.get('/domains')`, `client.post('/domains', data: { domain: 'example.com' })`
+- Example: `client.get('/domains', params: { limit: 10 })`, `client.post('/domains', data: { domain: 'example.com' })`
 
 **Webhook verification** — `Webhook` (standalone, no Client dependency)
 - HMAC-SHA256 signature verification with timestamp tolerance (default 300s)
