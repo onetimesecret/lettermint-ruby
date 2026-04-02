@@ -60,21 +60,21 @@ module Lettermint
       # @param id [String] Message ID
       # @return [String] Raw message source (message/rfc822)
       def source(id)
-        @http_client.get(path: "/messages/#{id}/source")
+        @http_client.get(path: "/messages/#{id}/source", headers: { 'Accept' => 'message/rfc822' })
       end
 
       # Get message HTML body.
       # @param id [String] Message ID
       # @return [String] HTML content (text/html)
       def html(id)
-        @http_client.get(path: "/messages/#{id}/html")
+        @http_client.get(path: "/messages/#{id}/html", headers: { 'Accept' => 'text/html' })
       end
 
       # Get message plain text body.
       # @param id [String] Message ID
       # @return [String] Plain text content (text/plain)
       def text(id)
-        @http_client.get(path: "/messages/#{id}/text")
+        @http_client.get(path: "/messages/#{id}/text", headers: { 'Accept' => 'text/plain' })
       end
     end
   end

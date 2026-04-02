@@ -28,6 +28,10 @@ module Lettermint
       end
 
       # Get project details.
+      #
+      # Note: Returns a Hash, not a resource object. To access routes for a project,
+      # use `projects.routes(project_id)` rather than chaining on the find result.
+      #
       # @param id [String] Project ID
       # @param include [String, nil] Related data: routes, domains, teamMembers, messageStats (+ Count/Exists variants)
       # @return [Hash] Project data with optional includes

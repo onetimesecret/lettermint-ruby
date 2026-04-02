@@ -28,7 +28,7 @@ module Lettermint
       # @param include [String, nil] Related data to include (dnsRecords, dnsRecordsCount, dnsRecordsExists)
       # @return [Hash] Domain data with optional includes
       def find(id, include: nil)
-        params = include ? { 'include' => include } : nil
+        params = build_params(include: include)
         @http_client.get(path: "/domains/#{id}", params: params)
       end
 

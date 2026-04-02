@@ -58,7 +58,7 @@ module Lettermint
     private
 
     def auth_headers(token, scheme)
-      case scheme
+      case scheme.to_sym
       when :project then { 'x-lettermint-token' => token }
       when :team    then { 'Authorization' => "Bearer #{token}" }
       else raise ArgumentError, "Unknown auth_scheme: #{scheme}"

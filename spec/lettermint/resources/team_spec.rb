@@ -19,11 +19,13 @@ RSpec.describe Lettermint::Resources::Team do
         )
 
       result = team.get
-      expect(result).to eq({
-                             'id' => 'team_123',
-                             'name' => 'Acme Corp',
-                             'plan' => 'pro'
-                           })
+      expect(result).to eq(
+        {
+          'id' => 'team_123',
+          'name' => 'Acme Corp',
+          'plan' => 'pro'
+        }
+      )
     end
 
     it 'sends GET request without include param when not specified' do

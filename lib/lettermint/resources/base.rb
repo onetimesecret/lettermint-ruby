@@ -17,12 +17,14 @@ module Lettermint
       # @param include [String, nil] Related resources to include
       # @param filters [Hash] Filter parameters (converted to filter[key]=value)
       # @return [Hash, nil] Query parameters hash or nil if empty
-      def build_params(page_size: nil, page_cursor: nil, sort: nil, include: nil, **filters) # rubocop:disable Metrics/CyclomaticComplexity
-        params = {}
-        params['page[size]'] = page_size if page_size
-        params['page[cursor]'] = page_cursor if page_cursor
-        params['sort'] = sort if sort
-        params['include'] = include if include
+      def build_params(page_size: nil, page_cursor: nil, sort: nil, include: nil, **filters)
+        params = {
+          'page[size]' => page_size,
+          'page[cursor]' => page_cursor,
+          'sort' => sort,
+          'include' => include
+        }.compact
+
         filters.each { |k, v| params["filter[#{k}]"] = v unless v.nil? }
         params.empty? ? nil : params
       end

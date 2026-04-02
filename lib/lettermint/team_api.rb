@@ -24,7 +24,7 @@ module Lettermint
     end
 
     # Health check endpoint (accepts both token types)
-    # @return [Integer] 200 on success
+    # @return [Hash] Parsed response body, e.g. { 'ok' => true } on success
     def ping
       @http_client.get(path: '/ping')
     end
