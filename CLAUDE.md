@@ -46,8 +46,9 @@ Error
 │   ├── ClientError (400)
 │   ├── AuthenticationError (401/403)
 │   └── RateLimitError (429, has retry_after)
-├── ConnectionError (has original_exception)
 ├── TimeoutError
+├── ConnectionError (has original_exception)
+├── ResponseParsingError (has original_exception)
 └── WebhookVerificationError
     ├── InvalidSignatureError
     ├── TimestampToleranceError

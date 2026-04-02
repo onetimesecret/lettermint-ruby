@@ -387,6 +387,8 @@ rescue Lettermint::TimeoutError
   # Request timed out
 rescue Lettermint::ConnectionError => e
   e.original_exception  # Underlying Faraday error
+rescue Lettermint::ResponseParsingError => e
+  e.original_exception  # Faraday::ParsingError
 rescue Lettermint::HttpRequestError => e
   # Catch-all for HTTP errors
 rescue Lettermint::Error => e
@@ -423,6 +425,7 @@ Lettermint::Error
 │   └── RateLimitError (429, retry_after)
 ├── TimeoutError
 ├── ConnectionError (original_exception)
+├── ResponseParsingError (original_exception)
 └── WebhookVerificationError
     ├── InvalidSignatureError
     ├── TimestampToleranceError
