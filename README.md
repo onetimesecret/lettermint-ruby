@@ -6,6 +6,11 @@
 
 Unofficial Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
 
+The SDK provides two API clients:
+
+- **SendingAPI** (aliased as `Client`) — Project-level email sending with `x-lettermint-token` authentication
+- **TeamAPI** — Team-level management (domains, projects, webhooks, etc.) with `lm_team_*` token authentication
+
 ## Installation
 
 Add to your Gemfile:
@@ -27,7 +32,8 @@ gem install lettermint
 ```ruby
 require 'lettermint'
 
-client = Lettermint::Client.new(api_token: 'your-api-token')
+# SendingAPI for email sending (aliased as Client for backward compatibility)
+client = Lettermint::SendingAPI.new(api_token: 'your-project-token')
 
 response = client.email
   .from('sender@example.com')
@@ -38,6 +44,21 @@ response = client.email
   .deliver
 
 puts response.message_id
+```
+
+### Team Management
+
+```ruby
+# TeamAPI for team-level operations (requires lm_team_* token)
+team_api = Lettermint::TeamAPI.new(team_token: 'lm_team_your-token')
+
+# List domains
+domains = team_api.domains.list
+puts domains['data'].map { |d| d['domain'] }
+
+# Get team info
+team = team_api.team.get
+puts team['name']
 ```
 
 ## Email Options
@@ -223,12 +244,117 @@ webhooks using the `x-lettermint-delivery` header value as an idempotency key --
 example, by recording processed delivery IDs in a database or cache and rejecting
 duplicates.
 
+## TeamAPI
+
+The TeamAPI provides access to team-level management operations. It requires a team token (prefixed with `lm_team_`).
+
+```ruby
+team_api = Lettermint::TeamAPI.new(team_token: 'lm_team_your-token')
+```
+
+### Available Resources
+
+| Resource | Methods |
+|----------|---------|
+| `team` | `get`, `update`, `usage`, `members` |
+| `domains` | `list`, `create`, `find`, `delete`, `verify_dns`, `verify_dns_record`, `update_projects` |
+| `projects` | `list`, `create`, `find`, `update`, `delete`, `rotate_token`, `add_member`, `remove_member`, `update_members`, `routes` |
+| `webhooks` | `list`, `create`, `find`, `update`, `delete`, `test`, `deliveries`, `delivery`, `regenerate_secret` |
+| `messages` | `list`, `find`, `html`, `text`, `source`, `events` |
+| `suppressions` | `list`, `create`, `delete` |
+| `routes` | `list`, `create`, `find`, `update`, `delete`, `verify_inbound_domain` |
+| `stats` | `get` |
+
+### Examples
+
+```ruby
+# Domains
+team_api.domains.create(domain: 'mail.example.com')
+team_api.domains.verify_dns('domain-id')
+
+# Projects
+projects = team_api.projects.list(sort: '-created_at')
+project = team_api.projects.create(name: 'My Project')
+team_api.projects.rotate_token(project['id'])
+
+# Webhooks
+team_api.webhooks.create(
+  name: 'My Webhook',
+  url: 'https://example.com/webhook',
+  events: ['message.sent', 'message.delivered']
+)
+
+# Messages (search and retrieve)
+messages = team_api.messages.list(status: 'delivered', tag: 'welcome')
+html_body = team_api.messages.html('message-id')
+
+# Suppressions
+team_api.suppressions.create(
+  emails: ['bounce@example.com'],
+  reason: 'hard_bounce',
+  scope: 'project',
+  project_id: 'project-id'
+)
+
+# Stats
+stats = team_api.stats.get(from: '2026-01-01', to: '2026-01-31')
+```
+
+### Pagination
+
+All list methods support cursor-based pagination:
+
+```ruby
+# First page
+result = team_api.domains.list(page_size: 10)
+
+# Next page
+if result['meta']['next_cursor']
+  next_page = team_api.domains.list(
+    page_size: 10,
+    page_cursor: result['meta']['next_cursor']
+  )
+end
+```
+
+### Sorting and Filtering
+
+```ruby
+# Sort by field (prefix with - for descending)
+team_api.projects.list(sort: '-created_at')
+team_api.domains.list(sort: 'domain')
+
+# Filter by field
+team_api.messages.list(status: 'delivered', from_email: 'noreply@example.com')
+team_api.domains.list(status: 'verified')
+```
+
+## Raw HTTP Methods
+
+The SendingAPI provides raw HTTP methods for accessing API endpoints not yet wrapped in typed methods:
+
+```ruby
+client = Lettermint::SendingAPI.new(api_token: 'your-api-token')
+
+# GET with query params
+response = client.get('/some-endpoint', params: { limit: 10 })
+
+# POST with JSON body
+response = client.post('/some-endpoint', data: { key: 'value' })
+
+# PUT
+response = client.put('/some-endpoint/123', data: { key: 'new-value' })
+
+# DELETE
+client.delete('/some-endpoint/123')
+```
+
 ## Error Handling
 
 ```ruby
 require 'lettermint'
 
-client = Lettermint::Client.new(api_token: 'your-api-token')
+client = Lettermint::SendingAPI.new(api_token: 'your-api-token')
 
 begin
   response = client.email
@@ -252,6 +378,10 @@ rescue Lettermint::ClientError => e
 rescue Lettermint::TimeoutError => e
   # Request timeout
   puts "Timeout: #{e.message}"
+rescue Lettermint::ConnectionError => e
+  # Network-level failures (DNS, connection refused, etc.)
+  puts "Connection error: #{e.message}"
+  puts "Original: #{e.original_exception}" if e.original_exception
 rescue Lettermint::HttpRequestError => e
   # Other HTTP errors
   puts "HTTP error #{e.status_code}: #{e.message}"
@@ -282,37 +412,16 @@ Set defaults once at application boot (e.g., in a Rails initializer):
 
 ```ruby
 Lettermint.configure do |config|
-  config.base_url = 'https://custom.api.com/v1'
   config.timeout = 60
 end
 ```
 
-All clients created afterward inherit these defaults:
-
-```ruby
-client = Lettermint::Client.new(api_token: 'your-api-token')
-# Uses the global base_url and timeout
-```
+All clients created afterward inherit these defaults.
 
 ### Per-Client Overrides
 
-Explicit keyword arguments take precedence over global configuration:
-
 ```ruby
-client = Lettermint::Client.new(
-  api_token: 'your-api-token',
-  base_url: 'https://other.api.com/v1',
-  timeout: 10
-)
-```
-
-### Block Configuration
-
-```ruby
-client = Lettermint::Client.new(api_token: 'your-api-token') do |config|
-  config.base_url = 'https://custom.api.com/v1'
-  config.timeout = 60
-end
+client = Lettermint::SendingAPI.new(api_token: 'your-api-token', timeout: 10)
 ```
 
 ## Requirements
