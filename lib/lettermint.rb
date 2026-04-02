@@ -7,6 +7,21 @@ require_relative 'lettermint/configuration'
 require_relative 'lettermint/http_client'
 require_relative 'lettermint/email_message'
 require_relative 'lettermint/webhook'
+
+# Resources (Team API)
+require_relative 'lettermint/resources/base'
+require_relative 'lettermint/resources/team'
+require_relative 'lettermint/resources/domains'
+require_relative 'lettermint/resources/projects'
+require_relative 'lettermint/resources/routes'
+require_relative 'lettermint/resources/webhooks'
+require_relative 'lettermint/resources/messages'
+require_relative 'lettermint/resources/suppressions'
+require_relative 'lettermint/resources/stats'
+
+# API Clients
+require_relative 'lettermint/sending_api'
+require_relative 'lettermint/team_api'
 require_relative 'lettermint/client'
 
 module Lettermint

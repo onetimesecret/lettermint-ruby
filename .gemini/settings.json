@@ -1,0 +1,7 @@
+{
+  "codeReview": {
+    "enabled": true,
+    "autoReview": true,
+    "reviewStyle": "concise"
+  }
+}
