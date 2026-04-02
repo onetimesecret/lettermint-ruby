@@ -75,7 +75,7 @@ module Lettermint
     rescue Faraday::ConnectionFailed => e
       raise Lettermint::ConnectionError.new(message: e.message, original_exception: e)
     rescue Faraday::ParsingError => e
-      raise Lettermint::ResponseParsingError.new(message: "Failed to parse API response: #{e.message}",
+      raise Lettermint::ResponseParsingError.new(message: "API response parsing failed: #{e.message}",
                                                  original_exception: e)
     end
 

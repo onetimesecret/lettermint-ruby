@@ -225,7 +225,7 @@ RSpec.describe Lettermint::HttpClient do
       stub_request(:post, "#{base_url}/send").to_raise(Faraday::ParsingError.new('unexpected token'))
 
       expect { client.post(path: '/send', data: {}) }
-        .to raise_error(Lettermint::ResponseParsingError, /Failed to parse API response/) { |e|
+        .to raise_error(Lettermint::ResponseParsingError, /API response parsing failed/) { |e|
           expect(e.original_exception).to be_a(Faraday::ParsingError)
         }
     end
