@@ -27,6 +27,11 @@ The SDK has two independent subsystems sharing a common error hierarchy:
 - `EmailMessage#deliver` POSTs to `/send`, returns a `SendEmailResponse` (Data.define), then resets internal state
 - `HttpClient` wraps Faraday; authenticates via `x-lettermint-token` header; maps HTTP status codes to typed exceptions
 
+**Raw HTTP access** — `Client#get`, `#post`, `#put`, `#delete`
+- Delegates to `HttpClient` for accessing arbitrary API endpoints not yet wrapped in typed methods
+- Returns raw `Hash` (parsed JSON); typed errors bubble up unchanged
+- Example: `client.get('/domains', params: { limit: 10 })`, `client.post('/domains', data: { domain: 'example.com' })`
+
 **Webhook verification** — `Webhook` (standalone, no Client dependency)
 - HMAC-SHA256 signature verification with timestamp tolerance (default 300s)
 - Signature format: `t=<unix_ts>,v1=<hex_hmac>` — parsed from `x-lettermint-signature` header
