@@ -195,6 +195,38 @@ RSpec.describe Lettermint::HttpClient do
           expect(e.original_exception).to be_a(Faraday::ConnectionFailed)
         }
     end
+
+    it 'raises HttpRequestError on non-JSON error response body' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 500,
+          body: 'Internal Server Error',
+          headers: { 'Content-Type' => 'text/plain' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::HttpRequestError) { |e|
+          expect(e.status_code).to eq(500)
+          expect(e.response_body).to be_nil
+          expect(e.message).to eq('HTTP 500')
+        }
+    end
+
+    it 'raises ConnectionError on SSL failure' do
+      stub_request(:post, "#{base_url}/send").to_raise(Faraday::SSLError.new('certificate verify failed'))
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::ConnectionError, /SSL error:.*certificate verify failed/) { |e|
+          expect(e.original_exception).to be_a(Faraday::SSLError)
+        }
+    end
+
+    it 'raises Error on JSON parsing failure' do
+      stub_request(:post, "#{base_url}/send").to_raise(Faraday::ParsingError.new('unexpected token'))
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::Error, /unexpected token|parsing/i)
+    end
   end
 
   describe 'custom base URL' do

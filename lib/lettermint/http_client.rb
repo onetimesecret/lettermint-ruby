@@ -70,8 +70,12 @@ module Lettermint
       handle_response(response)
     rescue Faraday::TimeoutError, Timeout::Error
       raise Lettermint::TimeoutError, "Request timeout after #{@connection.options.timeout}s"
+    rescue Faraday::SSLError => e
+      raise Lettermint::ConnectionError.new(message: "SSL error: #{e.message}", original_exception: e)
     rescue Faraday::ConnectionFailed => e
       raise Lettermint::ConnectionError.new(message: e.message, original_exception: e)
+    rescue Faraday::ParsingError => e
+      raise Lettermint::Error, "Failed to parse API response: #{e.message}"
     end
 
     def handle_response(response)

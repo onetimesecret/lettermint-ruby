@@ -43,7 +43,10 @@ The SDK has two independent subsystems sharing a common error hierarchy:
 Error
 ├── HttpRequestError (has status_code, response_body)
 │   ├── ValidationError (422, has error_type)
-│   └── ClientError (400)
+│   ├── ClientError (400)
+│   ├── AuthenticationError (401/403)
+│   └── RateLimitError (429, has retry_after)
+├── ConnectionError (has original_exception)
 ├── TimeoutError
 └── WebhookVerificationError
     ├── InvalidSignatureError
