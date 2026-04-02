@@ -48,7 +48,7 @@ module Lettermint
   class ConnectionError < Error
     attr_reader :original_exception
 
-    def initialize(message, original_exception: nil)
+    def initialize(message:, original_exception: nil)
       @original_exception = original_exception
       super(message)
     end

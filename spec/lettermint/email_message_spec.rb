@@ -186,25 +186,25 @@ RSpec.describe Lettermint::EmailMessage do
         .to raise_error(ArgumentError, /Missing required field\(s\): body/)
     end
 
-    it 'succeeds with only html body' do
-      stub_send(base_url)
+    context 'when body is provided' do
+      let(:base_message) { message.from('a@b.com').to('c@d.com').subject('Hi') }
 
-      result = message.from('a@b.com').to('c@d.com').subject('Hi').html('<p>Hi</p>').deliver
-      expect(result).to be_a(Lettermint::SendEmailResponse)
-    end
+      before { stub_send(base_url) }
 
-    it 'succeeds with only text body' do
-      stub_send(base_url)
+      it 'succeeds with only html body' do
+        result = base_message.html('<p>Hi</p>').deliver
+        expect(result).to be_a(Lettermint::SendEmailResponse)
+      end
 
-      result = message.from('a@b.com').to('c@d.com').subject('Hi').text('Hello').deliver
-      expect(result).to be_a(Lettermint::SendEmailResponse)
-    end
+      it 'succeeds with only text body' do
+        result = base_message.text('Hello').deliver
+        expect(result).to be_a(Lettermint::SendEmailResponse)
+      end
 
-    it 'succeeds with both html and text body' do
-      stub_send(base_url)
-
-      result = message.from('a@b.com').to('c@d.com').subject('Hi').html('<p>Hi</p>').text('Hello').deliver
-      expect(result).to be_a(Lettermint::SendEmailResponse)
+      it 'succeeds with both html and text body' do
+        result = base_message.html('<p>Hi</p>').text('Hello').deliver
+        expect(result).to be_a(Lettermint::SendEmailResponse)
+      end
     end
 
     it 'resets state after validation failure' do
