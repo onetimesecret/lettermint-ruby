@@ -73,4 +73,139 @@ RSpec.describe Lettermint::Client do
       expect(msg_a).not_to equal(msg_b)
     end
   end
+
+  describe 'HTTP method delegation' do
+    let(:base_url) { Lettermint::Configuration::DEFAULT_BASE_URL }
+    let(:client) { described_class.new(api_token: api_token) }
+
+    describe '#get' do
+      it 'sends GET request and returns parsed response' do
+        stub_request(:get, "#{base_url}/domains")
+          .to_return(status: 200, body: '{"domains":[]}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        result = client.get('/domains')
+        expect(result).to eq({ 'domains' => [] })
+      end
+
+      it 'works without params' do
+        stub_request(:get, "#{base_url}/ping")
+          .to_return(status: 200, body: '{"ok":true}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        result = client.get('/ping')
+        expect(result).to eq({ 'ok' => true })
+      end
+
+      it 'passes query params' do
+        stub_request(:get, "#{base_url}/messages?status=delivered")
+          .to_return(status: 200, body: '{"messages":[]}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        result = client.get('/messages', params: { status: 'delivered' })
+        expect(result).to eq({ 'messages' => [] })
+      end
+
+      it 'passes custom headers' do
+        stub = stub_request(:get, "#{base_url}/data")
+               .with(headers: { 'X-Request-Id' => 'req-123' })
+               .to_return(status: 200, body: '{}',
+                          headers: { 'Content-Type' => 'application/json' })
+
+        client.get('/data', headers: { 'X-Request-Id' => 'req-123' })
+        expect(stub).to have_been_requested
+      end
+    end
+
+    describe '#post' do
+      it 'sends POST request with JSON body and returns parsed response' do
+        stub_request(:post, "#{base_url}/domains")
+          .with(body: { domain: 'example.com' })
+          .to_return(status: 201, body: '{"id":"dom_123"}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        result = client.post('/domains', data: { domain: 'example.com' })
+        expect(result).to eq({ 'id' => 'dom_123' })
+      end
+
+      it 'works with empty data hash' do
+        stub_request(:post, "#{base_url}/trigger")
+          .with(body: {})
+          .to_return(status: 200, body: '{"triggered":true}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        result = client.post('/trigger', data: {})
+        expect(result).to eq({ 'triggered' => true })
+      end
+    end
+
+    describe '#put' do
+      it 'sends PUT request with JSON body' do
+        stub_request(:put, "#{base_url}/domains/123")
+          .with(body: { verified: true })
+          .to_return(status: 200, body: '{"id":"123","verified":true}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        result = client.put('/domains/123', data: { verified: true })
+        expect(result).to eq({ 'id' => '123', 'verified' => true })
+      end
+    end
+
+    describe '#delete' do
+      it 'sends DELETE request' do
+        stub_request(:delete, "#{base_url}/domains/123")
+          .to_return(status: 200, body: '{"deleted":true}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        result = client.delete('/domains/123')
+        expect(result).to eq({ 'deleted' => true })
+      end
+
+      it 'handles 204 No Content' do
+        stub_request(:delete, "#{base_url}/sessions/current")
+          .to_return(status: 204, body: '')
+
+        result = client.delete('/sessions/current')
+        expect(result).to eq('')
+      end
+    end
+
+    describe 'path normalization' do
+      it 'handles path without leading slash' do
+        stub = stub_request(:get, "#{base_url}/users")
+               .to_return(status: 200, body: '[]',
+                          headers: { 'Content-Type' => 'application/json' })
+
+        client.get('users')
+        expect(stub).to have_been_requested
+      end
+    end
+
+    describe 'error propagation' do
+      it 'raises ValidationError from underlying HttpClient' do
+        stub_request(:post, "#{base_url}/invalid")
+          .to_return(status: 422, body: '{"message":"Bad data","error":"validation_error"}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        expect { client.post('/invalid', data: {}) }
+          .to raise_error(Lettermint::ValidationError)
+      end
+
+      it 'raises AuthenticationError on 401' do
+        stub_request(:get, "#{base_url}/protected")
+          .to_return(status: 401, body: '{"message":"Unauthorized"}',
+                     headers: { 'Content-Type' => 'application/json' })
+
+        expect { client.get('/protected') }
+          .to raise_error(Lettermint::AuthenticationError)
+      end
+
+      it 'raises TimeoutError on timeout' do
+        stub_request(:get, "#{base_url}/slow").to_raise(Faraday::TimeoutError)
+
+        expect { client.get('/slow') }
+          .to raise_error(Lettermint::TimeoutError)
+      end
+    end
+  end
 end
