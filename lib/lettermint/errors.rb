@@ -54,6 +54,15 @@ module Lettermint
     end
   end
 
+  class ResponseParsingError < Error
+    attr_reader :original_exception
+
+    def initialize(message:, original_exception: nil)
+      @original_exception = original_exception
+      super(message)
+    end
+  end
+
   class WebhookVerificationError < Error; end
 
   class InvalidSignatureError < WebhookVerificationError; end
