@@ -45,6 +45,15 @@ module Lettermint
 
   class TimeoutError < Error; end
 
+  class ConnectionError < Error
+    attr_reader :original_exception
+
+    def initialize(message:, original_exception: nil)
+      @original_exception = original_exception
+      super(message)
+    end
+  end
+
   class WebhookVerificationError < Error; end
 
   class InvalidSignatureError < WebhookVerificationError; end

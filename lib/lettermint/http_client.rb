@@ -63,7 +63,7 @@ module Lettermint
     rescue Faraday::TimeoutError, Timeout::Error
       raise Lettermint::TimeoutError, "Request timeout after #{@connection.options.timeout}s"
     rescue Faraday::ConnectionFailed => e
-      raise Lettermint::Error, e.message
+      raise Lettermint::ConnectionError.new(message: e.message, original_exception: e)
     end
 
     def handle_response(response)

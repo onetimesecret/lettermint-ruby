@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Lettermint
-  class EmailMessage
+  class EmailMessage # rubocop:disable Metrics/ClassLength
     def initialize(http_client:)
       @http_client = http_client
       reset
@@ -108,7 +108,8 @@ module Lettermint
 
     def validate_required_fields
       missing = %i[from subject].select { |f| blank?(f) }
-      missing << :to if @payload[:to].nil? || @payload[:to].none? { |e| e.is_a?(String) && !e.strip.empty? }
+      missing << :to unless valid_recipients?
+      missing << :body unless body?
       return if missing.empty?
 
       raise ArgumentError, "Missing required field(s): #{missing.join(', ')}"
@@ -116,6 +117,14 @@ module Lettermint
 
     def blank?(field)
       @payload[field].nil? || @payload[field].to_s.strip.empty?
+    end
+
+    def valid_recipients?
+      @payload[:to]&.any? { |e| e.is_a?(String) && !e.strip.empty? }
+    end
+
+    def body?
+      !blank?(:html) || !blank?(:text)
     end
 
     def reset

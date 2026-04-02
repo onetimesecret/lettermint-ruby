@@ -110,6 +110,23 @@ RSpec.describe 'Lettermint error hierarchy' do
     end
   end
 
+  describe Lettermint::ConnectionError do
+    it 'inherits from Lettermint::Error' do
+      expect(described_class.new(message: 'connection failed')).to be_a(Lettermint::Error)
+    end
+
+    it 'exposes original_exception' do
+      original = Faraday::ConnectionFailed.new('refused')
+      err = described_class.new(message: 'connection failed', original_exception: original)
+      expect(err.original_exception).to eq(original)
+    end
+
+    it 'defaults original_exception to nil' do
+      err = described_class.new(message: 'connection failed')
+      expect(err.original_exception).to be_nil
+    end
+  end
+
   describe Lettermint::WebhookVerificationError do
     it 'inherits from Lettermint::Error' do
       expect(described_class.new('verify')).to be_a(Lettermint::Error)
