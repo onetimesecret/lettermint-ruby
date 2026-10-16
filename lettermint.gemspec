@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
     `git ls-files -z`.split("\x0").reject do |f|
       (File.expand_path(f) == __FILE__) ||
         f.start_with?('spec/', 'examples/', '.git', '.rubocop', 'Rakefile', 'Gemfile',
-                      'CLAUDE', '.pre-commit', '.rspec')
+                      'AGENTS', '.pre-commit', '.rspec', '.ruby', '.claude', '.gemini', '.codex')
     end
   end
 
