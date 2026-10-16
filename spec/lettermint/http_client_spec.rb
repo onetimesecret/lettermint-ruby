@@ -91,6 +91,55 @@ RSpec.describe Lettermint::HttpClient do
         }
     end
 
+    it 'raises ValidationError with error_type taken from the ApiError code' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 422,
+          body: '{"error":{"code":"VALIDATION_FAILED","message":"Recipient is invalid.","details":{"to":["invalid"]}}}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::ValidationError) { |e|
+          expect(e.error_type).to eq('VALIDATION_FAILED')
+          expect(e.code).to eq('VALIDATION_FAILED')
+          expect(e.message).to eq('Recipient is invalid.')
+          expect(e.details).to eq({ 'to' => ['invalid'] })
+        }
+    end
+
+    it 'raises ValidationError with default error_type when the ApiError has no String code' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 422,
+          body: '{"error":{"code":42,"message":"Recipient is invalid."}}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::ValidationError) { |e|
+          expect(e.error_type).to eq('ValidationError')
+          expect(e.code).to be_nil
+          expect(e.message).to eq('Recipient is invalid.')
+        }
+    end
+
+    it 'raises ValidationError with default error_type when the body has no error key' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 422,
+          body: '{"message":"Invalid email","errors":{"to":["bad field"]}}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::ValidationError) { |e|
+          expect(e.error_type).to eq('ValidationError')
+          expect(e.message).to eq('Invalid email')
+          expect(e.code).to be_nil
+        }
+    end
+
     it 'raises ClientError on 400' do
       stub_request(:post, "#{base_url}/send")
         .to_return(
@@ -102,7 +151,41 @@ RSpec.describe Lettermint::HttpClient do
       expect { client.post(path: '/send', data: {}) }
         .to raise_error(Lettermint::ClientError) { |e|
           expect(e.status_code).to eq(400)
-          expect(e.message).to eq('Bad request body')
+          expect(e.message).to eq('HTTP 400')
+          expect(e.code).to eq('Bad request body')
+          expect(e.details).to be_nil
+        }
+    end
+
+    it 'raises ClientError with message, code and details from an ApiError body' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 400,
+          body: '{"error":{"code":"INVALID_REQUEST","message":"Body is malformed.","details":{"field":"to"}}}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::ClientError) { |e|
+          expect(e.status_code).to eq(400)
+          expect(e.message).to eq('Body is malformed.')
+          expect(e.code).to eq('INVALID_REQUEST')
+          expect(e.details).to eq({ 'field' => 'to' })
+        }
+    end
+
+    it 'exposes details as an Array when the API returns one' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 400,
+          body: '{"error":{"code":"MULTIPLE_ISSUES","message":"Fields are invalid.","details":[{"field":"to"}]}}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::ClientError) { |e|
+          expect(e.code).to eq('MULTIPLE_ISSUES')
+          expect(e.details).to eq([{ 'field' => 'to' }])
         }
     end
 
@@ -118,6 +201,23 @@ RSpec.describe Lettermint::HttpClient do
         .to raise_error(Lettermint::AuthenticationError) { |e|
           expect(e.status_code).to eq(401)
           expect(e.message).to eq('Invalid API token')
+        }
+    end
+
+    it 'raises AuthenticationError with code from an ApiError body' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 401,
+          body: '{"error":{"code":"UNAUTHENTICATED","message":"Invalid API token.","details":null}}',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::AuthenticationError) { |e|
+          expect(e.status_code).to eq(401)
+          expect(e.code).to eq('UNAUTHENTICATED')
+          expect(e.message).to eq('Invalid API token.')
+          expect(e.details).to be_nil
         }
     end
 
@@ -207,9 +307,107 @@ RSpec.describe Lettermint::HttpClient do
       expect { client.post(path: '/send', data: {}) }
         .to raise_error(Lettermint::HttpRequestError) { |e|
           expect(e.status_code).to eq(500)
-          expect(e.response_body).to be_nil
+          expect(e.response_body).to eq('Internal Server Error')
           expect(e.message).to eq('HTTP 500')
+          expect(e.code).to be_nil
         }
+    end
+
+    it 'keeps a non-Hash JSON error body as parsed' do
+      stub_request(:post, "#{base_url}/send")
+        .to_return(
+          status: 500,
+          body: '["unexpected"]',
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.post(path: '/send', data: {}) }
+        .to raise_error(Lettermint::HttpRequestError) { |e|
+          expect(e.response_body).to eq(['unexpected'])
+          expect(e.message).to eq('HTTP 500')
+          expect(e.code).to be_nil
+        }
+    end
+
+    context 'on 404' do
+      let(:path) { '/domains/dom_missing' }
+
+      def stub_not_found(body, content_type: 'application/json')
+        stub_request(:get, "#{base_url}#{path}")
+          .to_return(status: 404, body: body, headers: { 'Content-Type' => content_type })
+      end
+
+      it 'raises NotFoundError with code and message from an ApiError body' do
+        body = fixture('errors/not_found_api_error.json')
+        stub_not_found(body)
+
+        expect { client.get(path: path) }
+          .to raise_error(Lettermint::NotFoundError) { |e|
+            expect(e.status_code).to eq(404)
+            expect(e.code).to eq('RESOURCE_NOT_FOUND')
+            expect(e.message).to eq('Domain not found.')
+            expect(e.details).to be_nil
+            expect(e.response_body).to eq(JSON.parse(body))
+          }
+      end
+
+      it 'raises NotFoundError with code only from a string error body' do
+        stub_not_found(fixture('errors/not_found_string_error.json'))
+
+        expect { client.get(path: path) }
+          .to raise_error(Lettermint::NotFoundError) { |e|
+            expect(e.code).to eq('not_found')
+            expect(e.message).to eq('HTTP 404')
+            expect(e.details).to be_nil
+          }
+      end
+
+      it 'raises NotFoundError with message only from an ErrorMessage body' do
+        stub_not_found(fixture('errors/not_found_error_message.json'))
+
+        expect { client.get(path: path) }
+          .to raise_error(Lettermint::NotFoundError) { |e|
+            expect(e.message).to eq('Domain not found.')
+            expect(e.code).to be_nil
+            expect(e.details).to be_nil
+          }
+      end
+
+      it 'raises NotFoundError with the raw HTML when a proxy answers with text/html' do
+        stub_not_found(fixture('errors/not_found_proxy.html'), content_type: 'text/html')
+
+        expect { client.get(path: path) }
+          .to raise_error(Lettermint::NotFoundError) { |e|
+            expect(e.status_code).to eq(404)
+            expect(e.response_body).to be_a(String)
+            expect(e.response_body).to include('<title>404 Not Found</title>')
+            expect(e.code).to be_nil
+            expect(e.message).to eq('HTTP 404')
+          }
+      end
+
+      it 'raises NotFoundError with nil response_body when the body is empty' do
+        stub_not_found('')
+
+        expect { client.get(path: path) }
+          .to raise_error(Lettermint::NotFoundError) { |e|
+            expect(e.response_body).to be_nil
+            expect(e.message).to eq('HTTP 404')
+            expect(e.code).to be_nil
+          }
+      end
+
+      it 'is rescued by rescue Lettermint::HttpRequestError' do
+        stub_not_found(fixture('errors/not_found_api_error.json'))
+
+        rescued = begin
+          client.get(path: path)
+        rescue Lettermint::HttpRequestError => e
+          e
+        end
+
+        expect(rescued).to be_a(Lettermint::NotFoundError)
+      end
     end
 
     it 'raises ConnectionError on SSL failure' do
