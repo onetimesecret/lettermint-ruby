@@ -4,7 +4,7 @@
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-red?style=flat-square)](https://www.ruby-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/onetimesecret/lettermint-ruby/blob/main/LICENSE)
 
-Unofficial Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
+An unofficial but orthodox Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
 
 The SDK provides two API clients:
 
