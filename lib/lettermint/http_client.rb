@@ -83,11 +83,7 @@ module Lettermint
       return response.body if response.success?
 
       body = response.body.is_a?(Hash) ? response.body : nil
-      raise_api_error(response.status, body, response.headers)
-    end
-
-    def raise_api_error(status, body, headers)
-      raise build_error(status, body, headers)
+      raise build_error(response.status, body, response.headers)
     end
 
     def build_error(status, body, headers) # rubocop:disable Metrics
@@ -103,13 +99,17 @@ module Lettermint
         ValidationError.new(message: msg['message', 'Validation error'],
                             error_type: msg['error', 'ValidationError'], response_body: body)
       when 429
-        retry_after = headers && headers['Retry-After'] && Integer(headers['Retry-After'], exception: false)
         RateLimitError.new(message: msg['message', 'Rate limit exceeded'],
-                           retry_after: retry_after, response_body: body)
+                           retry_after: retry_after_from(headers), response_body: body)
       else
         HttpRequestError.new(message: msg['message', "HTTP #{status}"],
                              status_code: status, response_body: body)
       end
+    end
+
+    def retry_after_from(headers)
+      value = headers && headers['Retry-After']
+      value && Integer(value, exception: false)
     end
   end
 end
