@@ -41,10 +41,11 @@ The SDK has two independent subsystems sharing a common error hierarchy:
 **Error hierarchy:**
 ```
 Error
-├── HttpRequestError (has status_code, response_body)
+├── HttpRequestError (has status_code, response_body, code, details)
 │   ├── ValidationError (422, has error_type)
 │   ├── ClientError (400)
 │   ├── AuthenticationError (401/403)
+│   ├── NotFoundError (404)
 │   └── RateLimitError (429, has retry_after)
 ├── TimeoutError
 ├── ConnectionError (has original_exception)

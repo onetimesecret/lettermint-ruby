@@ -375,6 +375,10 @@ rescue Lettermint::ValidationError => e
 rescue Lettermint::ClientError => e
   # 400 errors
   puts "Client error: #{e.message}"
+rescue Lettermint::NotFoundError => e
+  # 404 errors
+  puts "Not found: #{e.code}"       # e.g. "RESOURCE_NOT_FOUND" (may be nil)
+  puts "Details: #{e.details}"     # Hash, Array or nil
 rescue Lettermint::TimeoutError => e
   # Request timeout
   puts "Timeout: #{e.message}"
@@ -383,8 +387,8 @@ rescue Lettermint::ConnectionError => e
   puts "Connection error: #{e.message}"
   puts "Original: #{e.original_exception}" if e.original_exception
 rescue Lettermint::HttpRequestError => e
-  # Other HTTP errors
-  puts "HTTP error #{e.status_code}: #{e.message}"
+  # Other HTTP errors. `code` and `details` are available on every HTTP error.
+  puts "HTTP error #{e.status_code}: #{e.message} (#{e.code})"
 end
 ```
 

@@ -375,12 +375,16 @@ begin
 rescue Lettermint::ValidationError => e
   e.message        # Error message
   e.status_code    # 422
-  e.error_type     # Validation error type
+  e.error_type     # Validation error type (same as e.code for ApiError bodies)
   e.response_body  # Raw response
 rescue Lettermint::ClientError => e
   e.status_code    # 400
 rescue Lettermint::AuthenticationError => e
   e.status_code    # 401 or 403
+rescue Lettermint::NotFoundError => e
+  e.status_code    # 404
+  e.code           # e.g. "RESOURCE_NOT_FOUND" (may be nil)
+  e.details        # Hash, Array or nil; shape depends on code
 rescue Lettermint::RateLimitError => e
   e.retry_after    # Seconds to wait (may be nil)
 rescue Lettermint::TimeoutError
@@ -391,6 +395,10 @@ rescue Lettermint::ResponseParsingError => e
   e.original_exception  # Faraday::ParsingError
 rescue Lettermint::HttpRequestError => e
   # Catch-all for HTTP errors
+  e.status_code    # Integer
+  e.code           # API error code string (may be nil)
+  e.details        # Hash, Array or nil
+  e.response_body  # Hash (JSON), String (non-JSON) or nil (empty)
 rescue Lettermint::Error => e
   # Catch-all for SDK errors
 end
@@ -418,10 +426,11 @@ end
 
 ```
 Lettermint::Error
-├── HttpRequestError (status_code, response_body)
+├── HttpRequestError (status_code, response_body, code, details)
 │   ├── ValidationError (422, error_type)
 │   ├── ClientError (400)
 │   ├── AuthenticationError (401/403)
+│   ├── NotFoundError (404)
 │   └── RateLimitError (429, retry_after)
 ├── TimeoutError
 ├── ConnectionError (original_exception)
@@ -431,6 +440,22 @@ Lettermint::Error
     ├── TimestampToleranceError
     └── WebhookJsonDecodeError (original_exception)
 ```
+
+### Error Bodies
+
+`HttpRequestError` and its subclasses read three JSON body shapes, matching the official Lettermint SDKs:
+
+| Body | Sets |
+|------|------|
+| `{"error":{"code":"...","message":"...","details":...}}` | `code`, `message`, `details` |
+| `{"error":"<string>"}` | `code` |
+| `{"message":"<string>"}` | `message` |
+
+`message` resolves in order: `error.message`, top-level `message`, then `"HTTP <status>"`.
+
+`response_body` is the parsed Hash for JSON responses, the stripped String for non-JSON responses (for example an HTML 404 page from a proxy), and nil for an empty body.
+
+Limitation: a non-JSON body served with a JSON Content-Type raises `ResponseParsingError` before status mapping, so such a proxy 404 is not a `NotFoundError`.
 
 ---
 
