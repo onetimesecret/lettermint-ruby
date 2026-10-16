@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-16
+
+### Added
+
+- `NotFoundError` for HTTP 404 responses (subclass of `HttpRequestError`)
+- `code` and `details` readers on `HttpRequestError`, inherited by every subclass
+
+### Changed
+
+- Error bodies are parsed from the three shapes used by the official Lettermint SDKs: `{"error":{"code","message","details"}}`, `{"error":"<string>"}`, and `{"message":"<string>"}`
+- Error message resolves from `error.message`, then top-level `message`, then `"HTTP <status>"`; the per-status fallback literals (`Unknown client error`, `Validation error`, `Rate limit exceeded`) are removed
+- `response_body` keeps non-JSON bodies as a String (for example an HTML 404 page from a proxy); empty bodies are nil
+- A String `error` value is now exposed as `code` and no longer used as the message; a 400 with `{"error":"..."}` and no `message` reports `HTTP 400`
+
+### Fixed
+
+- 400 responses with an `{"error":{...}}` body produced a stringified Hash as the message
+- 422 responses with an `{"error":{...}}` body set `error_type` to a Hash; it is now the `code` string
+
+[0.2.1]: https://github.com/onetimesecret/lettermint-ruby/compare/v0.2.0...v0.2.1
+
 ## [0.2.0] - 2026-04-01
 
 ### Added
