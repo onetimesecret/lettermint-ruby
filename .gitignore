@@ -1,3 +1,4 @@
+.DS_Store
 /.bundle/
 /.yardoc
 /_yardoc/
@@ -11,4 +12,3 @@
 Gemfile.lock
 .rspec_status
 .claude
-.serena
