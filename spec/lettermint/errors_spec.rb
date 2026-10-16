@@ -34,6 +34,17 @@ RSpec.describe 'Lettermint error hierarchy' do
       err = described_class.new(message: 'fail', status_code: 503)
       expect(err.response_body).to be_nil
     end
+
+    it 'exposes code and details' do
+      err = described_class.new(message: 'fail', status_code: 503, code: 'UPSTREAM_DOWN', details: { 'retry' => true })
+      expect(err.code).to eq('UPSTREAM_DOWN')
+      expect(err.details).to eq({ 'retry' => true })
+    end
+
+    it 'defaults code and details to nil' do
+      expect(error.code).to be_nil
+      expect(error.details).to be_nil
+    end
   end
 
   describe Lettermint::ValidationError do
@@ -52,6 +63,18 @@ RSpec.describe 'Lettermint error hierarchy' do
     it 'exposes error_type' do
       expect(error.error_type).to eq('validation_error')
     end
+
+    it 'exposes code and details' do
+      err = described_class.new(message: 'Invalid field', error_type: 'VALIDATION_FAILED',
+                                code: 'VALIDATION_FAILED', details: { 'to' => ['invalid'] })
+      expect(err.code).to eq('VALIDATION_FAILED')
+      expect(err.details).to eq({ 'to' => ['invalid'] })
+    end
+
+    it 'defaults code and details to nil' do
+      expect(error.code).to be_nil
+      expect(error.details).to be_nil
+    end
   end
 
   describe Lettermint::ClientError do
@@ -63,6 +86,54 @@ RSpec.describe 'Lettermint error hierarchy' do
 
     it 'hardcodes status_code to 400' do
       expect(error.status_code).to eq(400)
+    end
+
+    it 'exposes code and details' do
+      err = described_class.new(message: 'Bad request', code: 'INVALID_REQUEST', details: [{ 'field' => 'to' }])
+      expect(err.code).to eq('INVALID_REQUEST')
+      expect(err.details).to eq([{ 'field' => 'to' }])
+    end
+
+    it 'defaults code and details to nil' do
+      expect(error.code).to be_nil
+      expect(error.details).to be_nil
+    end
+  end
+
+  describe Lettermint::NotFoundError do
+    subject(:error) { described_class.new(message: 'Domain not found.') }
+
+    it 'inherits from HttpRequestError' do
+      expect(error).to be_a(Lettermint::HttpRequestError)
+    end
+
+    it 'hardcodes status_code to 404' do
+      expect(error.status_code).to eq(404)
+    end
+
+    it 'has the correct message' do
+      expect(error.message).to eq('Domain not found.')
+    end
+
+    it 'exposes code and details' do
+      err = described_class.new(message: 'Domain not found.', code: 'RESOURCE_NOT_FOUND', details: { 'id' => 'dom_1' })
+      expect(err.code).to eq('RESOURCE_NOT_FOUND')
+      expect(err.details).to eq({ 'id' => 'dom_1' })
+    end
+
+    it 'defaults code and details to nil' do
+      expect(error.code).to be_nil
+      expect(error.details).to be_nil
+    end
+
+    it 'exposes response_body' do
+      body = { 'error' => { 'code' => 'RESOURCE_NOT_FOUND', 'message' => 'Domain not found.' } }
+      err = described_class.new(message: 'Domain not found.', response_body: body)
+      expect(err.response_body).to eq(body)
+    end
+
+    it 'defaults response_body to nil' do
+      expect(error.response_body).to be_nil
     end
   end
 
@@ -80,6 +151,17 @@ RSpec.describe 'Lettermint error hierarchy' do
     it 'works for 403' do
       err = described_class.new(message: 'Forbidden', status_code: 403)
       expect(err.status_code).to eq(403)
+    end
+
+    it 'exposes code and details' do
+      err = described_class.new(message: 'Unauthorized', status_code: 401, code: 'UNAUTHENTICATED', details: nil)
+      expect(err.code).to eq('UNAUTHENTICATED')
+      expect(err.details).to be_nil
+    end
+
+    it 'defaults code and details to nil' do
+      expect(error.code).to be_nil
+      expect(error.details).to be_nil
     end
   end
 
@@ -101,6 +183,78 @@ RSpec.describe 'Lettermint error hierarchy' do
     it 'defaults retry_after to nil' do
       err = described_class.new(message: 'Rate limit exceeded')
       expect(err.retry_after).to be_nil
+    end
+
+    it 'exposes code and details' do
+      err = described_class.new(message: 'Rate limit exceeded', code: 'RATE_LIMITED', details: { 'limit' => 100 })
+      expect(err.code).to eq('RATE_LIMITED')
+      expect(err.details).to eq({ 'limit' => 100 })
+    end
+
+    it 'defaults code and details to nil' do
+      expect(error.code).to be_nil
+      expect(error.details).to be_nil
+    end
+  end
+
+  describe Lettermint::ErrorBody do
+    describe '.parse' do
+      it 'extracts message, code and details from an ApiError body' do
+        body = JSON.parse(fixture('errors/not_found_api_error.json'))
+        expect(described_class.parse(404, body)).to eq(['Domain not found.', 'RESOURCE_NOT_FOUND', nil])
+      end
+
+      it 'passes ApiError details through untouched' do
+        body = { 'error' => { 'code' => 'VALIDATION_FAILED', 'message' => 'Bad', 'details' => { 'to' => ['x'] } } }
+        expect(described_class.parse(422, body)).to eq(['Bad', 'VALIDATION_FAILED', { 'to' => ['x'] }])
+      end
+
+      it 'treats a String error as a code and falls back to HTTP <status> for the message' do
+        body = JSON.parse(fixture('errors/not_found_string_error.json'))
+        expect(described_class.parse(404, body)).to eq(['HTTP 404', 'not_found', nil])
+      end
+
+      it 'uses the top-level message from an ErrorMessage body' do
+        body = JSON.parse(fixture('errors/not_found_error_message.json'))
+        expect(described_class.parse(404, body)).to eq(['Domain not found.', nil, nil])
+      end
+
+      it 'prefers the ApiError message over a top-level message' do
+        body = { 'error' => { 'code' => 'X', 'message' => 'Inner' }, 'message' => 'Outer' }
+        expect(described_class.parse(400, body)).to eq(['Inner', 'X', nil])
+      end
+
+      it 'returns HTTP <status> with no code or details for a String body' do
+        expect(described_class.parse(500, 'Internal Server Error')).to eq(['HTTP 500', nil, nil])
+      end
+
+      it 'returns HTTP <status> with no code or details for a nil body' do
+        expect(described_class.parse(502, nil)).to eq(['HTTP 502', nil, nil])
+      end
+
+      it 'returns HTTP <status> with no code or details for an Array body' do
+        expect(described_class.parse(500, ['unexpected'])).to eq(['HTTP 500', nil, nil])
+      end
+
+      it 'ignores non-String code and message values inside error' do
+        body = { 'error' => { 'code' => 123, 'message' => ['not a string'] } }
+        expect(described_class.parse(400, body)).to eq(['HTTP 400', nil, nil])
+      end
+
+      it 'ignores a non-String top-level message' do
+        body = { 'message' => { 'text' => 'nested' } }
+        expect(described_class.parse(400, body)).to eq(['HTTP 400', nil, nil])
+      end
+
+      it 'falls through to the top-level message when the ApiError message is blank' do
+        body = { 'error' => { 'code' => 'X', 'message' => '   ' }, 'message' => 'Top level' }
+        expect(described_class.parse(400, body)).to eq(['Top level', 'X', nil])
+      end
+
+      it 'falls back to HTTP <status> when every message is blank' do
+        body = { 'error' => { 'code' => 'X', 'message' => '' }, 'message' => '' }
+        expect(described_class.parse(400, body)).to eq(['HTTP 400', 'X', nil])
+      end
     end
   end
 
@@ -167,6 +321,12 @@ RSpec.describe 'Lettermint error hierarchy' do
     it 'matches ClientError with rescue' do
       expect do
         raise Lettermint::ClientError.new(message: 'bad')
+      end.to raise_error(Lettermint::HttpRequestError)
+    end
+
+    it 'matches NotFoundError with rescue' do
+      expect do
+        raise Lettermint::NotFoundError.new(message: 'missing')
       end.to raise_error(Lettermint::HttpRequestError)
     end
   end
