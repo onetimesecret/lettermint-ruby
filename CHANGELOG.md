@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-10-16
+
+### Added
+
+- `ConflictError` for HTTP 409 responses (subclass of `HttpRequestError`) ([#15])
+- `ServerError` for HTTP 500–599 responses (subclass of `HttpRequestError`), with a `retry_after` reader set the same way as `RateLimitError#retry_after` ([#15])
+- `ValidationError#errors`: the field errors Hash (`{"<field>" => ["<msg>", ...]}`) from a 422 body shaped `{"message","errors"}`; nil when `errors` is missing or not a Hash ([#15])
+- `Retry-After` accepts an HTTP-date (RFC 9110) as well as integer seconds; a date becomes whole seconds from now, rounded up, never below 0, and any other value gives nil ([#15])
+
+### Changed
+
+- HTTP 409 raises `ConflictError` and HTTP 500–599 raises `ServerError`; both were plain `HttpRequestError` before. Existing `rescue Lettermint::HttpRequestError` and `status_code` checks are unaffected, and 600 and above still raise `HttpRequestError` ([#15])
+
+[0.2.2]: https://github.com/onetimesecret/lettermint-ruby/compare/v0.2.1...v0.2.2
+[#15]: https://github.com/onetimesecret/lettermint-ruby/issues/15
+
 ## [0.2.1] - 2026-10-16
 
 ### Added
