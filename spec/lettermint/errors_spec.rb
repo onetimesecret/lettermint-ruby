@@ -75,6 +75,30 @@ RSpec.describe 'Lettermint error hierarchy' do
       expect(error.code).to be_nil
       expect(error.details).to be_nil
     end
+
+    describe '#errors' do
+      def errors_for(response_body)
+        described_class.new(message: 'Invalid field', error_type: 'invalid', response_body: response_body).errors
+      end
+
+      it 'returns the field errors from a Hash errors body' do
+        body = { 'message' => 'Invalid field', 'errors' => { 'to' => ['invalid'], 'subject' => ['required'] } }
+        expect(errors_for(body)).to eq({ 'to' => ['invalid'], 'subject' => ['required'] })
+      end
+
+      it 'is nil when errors is an Array' do
+        expect(error.errors).to be_nil
+      end
+
+      it 'is nil for a String or nil response_body' do
+        expect(errors_for('Unprocessable Content')).to be_nil
+        expect(errors_for(nil)).to be_nil
+      end
+
+      it 'is nil when the body has no errors key' do
+        expect(errors_for({ 'message' => 'Invalid field' })).to be_nil
+      end
+    end
   end
 
   describe Lettermint::ClientError do
@@ -189,6 +213,77 @@ RSpec.describe 'Lettermint error hierarchy' do
       err = described_class.new(message: 'Rate limit exceeded', code: 'RATE_LIMITED', details: { 'limit' => 100 })
       expect(err.code).to eq('RATE_LIMITED')
       expect(err.details).to eq({ 'limit' => 100 })
+    end
+
+    it 'defaults code and details to nil' do
+      expect(error.code).to be_nil
+      expect(error.details).to be_nil
+    end
+  end
+
+  describe Lettermint::ConflictError do
+    subject(:error) { described_class.new(message: 'Message state conflict.') }
+
+    it 'inherits from HttpRequestError' do
+      expect(error).to be_a(Lettermint::HttpRequestError)
+    end
+
+    it 'hardcodes status_code to 409' do
+      expect(error.status_code).to eq(409)
+    end
+
+    it 'has the correct message' do
+      expect(error.message).to eq('Message state conflict.')
+    end
+
+    it 'exposes code, details and response_body' do
+      body = { 'error' => { 'code' => 'CONFLICT', 'message' => 'Message state conflict.' } }
+      err = described_class.new(message: 'Message state conflict.', response_body: body,
+                                code: 'CONFLICT', details: { 'state' => 'sent' })
+      expect(err.code).to eq('CONFLICT')
+      expect(err.details).to eq({ 'state' => 'sent' })
+      expect(err.response_body).to eq(body)
+    end
+
+    it 'defaults code, details and response_body to nil' do
+      expect(error.code).to be_nil
+      expect(error.details).to be_nil
+      expect(error.response_body).to be_nil
+    end
+  end
+
+  describe Lettermint::ServerError do
+    subject(:error) { described_class.new(message: 'Service unavailable', status_code: 503, retry_after: 30) }
+
+    it 'inherits from HttpRequestError' do
+      expect(error).to be_a(Lettermint::HttpRequestError)
+    end
+
+    it 'exposes the status code' do
+      expect(error.status_code).to eq(503)
+    end
+
+    it 'works for 500' do
+      err = described_class.new(message: 'Internal server error', status_code: 500)
+      expect(err.status_code).to eq(500)
+    end
+
+    it 'exposes retry_after' do
+      expect(error.retry_after).to eq(30)
+    end
+
+    it 'defaults retry_after to nil' do
+      err = described_class.new(message: 'Service unavailable', status_code: 503)
+      expect(err.retry_after).to be_nil
+    end
+
+    it 'exposes code, details and response_body' do
+      body = { 'message' => 'Service unavailable' }
+      err = described_class.new(message: 'Service unavailable', status_code: 503, response_body: body,
+                                code: 'UPSTREAM_DOWN', details: { 'retry' => true })
+      expect(err.code).to eq('UPSTREAM_DOWN')
+      expect(err.details).to eq({ 'retry' => true })
+      expect(err.response_body).to eq(body)
     end
 
     it 'defaults code and details to nil' do
@@ -333,6 +428,18 @@ RSpec.describe 'Lettermint error hierarchy' do
     it 'matches NotFoundError with rescue' do
       expect do
         raise Lettermint::NotFoundError.new(message: 'missing')
+      end.to raise_error(Lettermint::HttpRequestError)
+    end
+
+    it 'matches ConflictError with rescue' do
+      expect do
+        raise Lettermint::ConflictError.new(message: 'conflict')
+      end.to raise_error(Lettermint::HttpRequestError)
+    end
+
+    it 'matches ServerError with rescue' do
+      expect do
+        raise Lettermint::ServerError.new(message: 'unavailable', status_code: 503)
       end.to raise_error(Lettermint::HttpRequestError)
     end
   end

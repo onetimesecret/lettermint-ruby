@@ -93,6 +93,7 @@ module Lettermint
       stripped.empty? ? nil : stripped
     end
 
+    # rubocop:disable-next Metrics/CyclomaticComplexity
     def build_error(status, body, headers)
       message, code, details = ErrorBody.parse(status, body)
       common = { message: message, response_body: body, code: code, details: details }
@@ -101,8 +102,10 @@ module Lettermint
       when 401, 403 then AuthenticationError.new(status_code: status, **common)
       when 400 then ClientError.new(**common)
       when 404 then NotFoundError.new(**common)
+      when 409 then ConflictError.new(**common)
       when 422 then ValidationError.new(error_type: validation_error_type(body, code), **common)
       when 429 then RateLimitError.new(retry_after: retry_after_from(headers), **common)
+      when 500..599 then ServerError.new(status_code: status, retry_after: retry_after_from(headers), **common)
       else HttpRequestError.new(status_code: status, **common)
       end
     end
@@ -116,8 +119,7 @@ module Lettermint
     end
 
     def retry_after_from(headers)
-      value = headers && headers['Retry-After']
-      value && Integer(value, exception: false)
+      RetryAfter.parse(headers && headers['Retry-After'])
     end
   end
 end

@@ -87,6 +87,7 @@ RSpec.describe Lettermint::HttpClient do
           expect(e.status_code).to eq(422)
           expect(e.error_type).to eq('validation_error')
           expect(e.message).to eq('Invalid email')
+          expect(e.errors).to be_nil
           expect(e.response_body).to include('errors' => ['bad field'])
         }
     end
@@ -105,6 +106,7 @@ RSpec.describe Lettermint::HttpClient do
           expect(e.code).to eq('VALIDATION_FAILED')
           expect(e.message).to eq('Recipient is invalid.')
           expect(e.details).to eq({ 'to' => ['invalid'] })
+          expect(e.errors).to be_nil
         }
     end
 
@@ -137,6 +139,7 @@ RSpec.describe Lettermint::HttpClient do
           expect(e.error_type).to eq('ValidationError')
           expect(e.message).to eq('Invalid email')
           expect(e.code).to be_nil
+          expect(e.errors).to eq({ 'to' => ['bad field'] })
         }
     end
 
@@ -283,7 +286,7 @@ RSpec.describe Lettermint::HttpClient do
         }
     end
 
-    it 'raises HttpRequestError on 500' do
+    it 'raises ServerError on 500' do
       stub_request(:post, "#{base_url}/send")
         .to_return(
           status: 500,
@@ -292,7 +295,7 @@ RSpec.describe Lettermint::HttpClient do
         )
 
       expect { client.post(path: '/send', data: {}) }
-        .to raise_error(Lettermint::HttpRequestError) { |e|
+        .to raise_error(Lettermint::ServerError) { |e|
           expect(e.status_code).to eq(500)
         }
     end
@@ -313,7 +316,7 @@ RSpec.describe Lettermint::HttpClient do
         }
     end
 
-    it 'raises HttpRequestError on non-JSON error response body' do
+    it 'raises ServerError on non-JSON error response body' do
       stub_request(:post, "#{base_url}/send")
         .to_return(
           status: 500,
@@ -322,7 +325,7 @@ RSpec.describe Lettermint::HttpClient do
         )
 
       expect { client.post(path: '/send', data: {}) }
-        .to raise_error(Lettermint::HttpRequestError) { |e|
+        .to raise_error(Lettermint::ServerError) { |e|
           expect(e.status_code).to eq(500)
           expect(e.response_body).to eq('Internal Server Error')
           expect(e.message).to eq('HTTP 500')
@@ -339,7 +342,7 @@ RSpec.describe Lettermint::HttpClient do
         )
 
       expect { client.post(path: '/send', data: {}) }
-        .to raise_error(Lettermint::HttpRequestError) { |e|
+        .to raise_error(Lettermint::ServerError) { |e|
           expect(e.response_body).to eq(['unexpected'])
           expect(e.message).to eq('HTTP 500')
           expect(e.code).to be_nil
@@ -429,6 +432,106 @@ RSpec.describe Lettermint::HttpClient do
         end
 
         expect(rescued).to be_a(Lettermint::NotFoundError)
+      end
+    end
+
+    context 'on 409' do
+      let(:path) { '/messages/msg_0000000000000000/cancel' }
+
+      def stub_conflict(body)
+        stub_request(:post, "#{base_url}#{path}")
+          .to_return(status: 409, body: body, headers: { 'Content-Type' => 'application/json' })
+      end
+
+      it 'raises ConflictError with code and details from an ApiError body' do
+        stub_conflict('{"error":{"code":"CONFLICT","message":"Message state conflict.","details":{"state":"sent"}}}')
+
+        expect { client.post(path: path) }
+          .to raise_error(Lettermint::ConflictError) { |e|
+            expect(e).to be_a(Lettermint::HttpRequestError)
+            expect(e.status_code).to eq(409)
+            expect(e.code).to eq('CONFLICT')
+            expect(e.message).to eq('Message state conflict.')
+            expect(e.details).to eq({ 'state' => 'sent' })
+          }
+      end
+
+      it 'raises ConflictError with no code from an ErrorMessage body' do
+        stub_conflict('{"message":"Message state conflict."}')
+
+        expect { client.post(path: path) }
+          .to raise_error(Lettermint::ConflictError) { |e|
+            expect(e.status_code).to eq(409)
+            expect(e.message).to eq('Message state conflict.')
+            expect(e.code).to be_nil
+            expect(e.details).to be_nil
+          }
+      end
+    end
+
+    context 'on 5xx' do
+      def stub_server_error(status, headers = {})
+        stub_request(:post, "#{base_url}/send")
+          .to_return(status: status, body: '{"message":"Service unavailable"}',
+                     headers: { 'Content-Type' => 'application/json', **headers })
+      end
+
+      [500, 503, 504].each do |status|
+        it "raises ServerError with status_code #{status} and nil retry_after without Retry-After" do
+          stub_server_error(status)
+
+          expect { client.post(path: '/send', data: {}) }
+            .to raise_error(Lettermint::ServerError) { |e|
+              expect(e).to be_a(Lettermint::HttpRequestError)
+              expect(e.status_code).to eq(status)
+              expect(e.message).to eq('Service unavailable')
+              expect(e.retry_after).to be_nil
+            }
+        end
+      end
+
+      it 'raises ServerError with retry_after from an integer Retry-After' do
+        stub_server_error(503, 'Retry-After' => '30')
+
+        expect { client.post(path: '/send', data: {}) }
+          .to raise_error(Lettermint::ServerError) { |e|
+            expect(e.retry_after).to eq(30)
+          }
+      end
+
+      it 'raises plain HttpRequestError for a status above 599' do
+        stub_server_error(600)
+
+        expect { client.post(path: '/send', data: {}) }
+          .to raise_error(Lettermint::HttpRequestError) { |e|
+            expect(e).not_to be_a(Lettermint::ServerError)
+            expect(e.status_code).to eq(600)
+          }
+      end
+    end
+
+    context 'with an HTTP-date or malformed Retry-After' do
+      now = Time.utc(2026, 10, 16, 12, 0, 0)
+
+      before { allow(Time).to receive(:now).and_return(now) }
+
+      {
+        'an HTTP-date in the future' => [(now + 120).httpdate, 120],
+        'an HTTP-date in the past' => [(now - 120).httpdate, 0],
+        'a malformed value' => ['soon', nil]
+      }.each do |description, (header, expected)|
+        { 429 => Lettermint::RateLimitError, 503 => Lettermint::ServerError }.each do |status, error_class|
+          it "sets retry_after to #{expected.inspect} on #{status} for #{description}" do
+            stub_request(:post, "#{base_url}/send")
+              .to_return(status: status, body: '{"message":"Try later"}',
+                         headers: { 'Content-Type' => 'application/json', 'Retry-After' => header })
+
+            expect { client.post(path: '/send', data: {}) }
+              .to raise_error(error_class) { |e|
+                expect(e.retry_after).to eq(expected)
+              }
+          end
+        end
       end
     end
 

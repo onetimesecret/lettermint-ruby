@@ -26,8 +26,16 @@ RSpec.describe 'Lettermint Team OpenAPI error contract' do
   end
 
   describe 'ValidationError schema' do
+    let(:errors) { schemas.fetch('ValidationError').fetch('properties').fetch('errors') }
+
     it 'requires message and errors' do
       expect(schemas.fetch('ValidationError').fetch('required')).to contain_exactly('message', 'errors')
+    end
+
+    it 'types errors as an object of string arrays keyed by field' do
+      expect(errors.fetch('type')).to eq('object')
+      expect(errors.dig('additionalProperties', 'type')).to eq('array')
+      expect(errors.dig('additionalProperties', 'items', 'type')).to eq('string')
     end
   end
 

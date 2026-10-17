@@ -230,7 +230,7 @@ RSpec.describe Lettermint::Resources::Stats do
       expect { stats.get(from: from_date, to: to_date) }.to raise_error(Lettermint::TimeoutError)
     end
 
-    it 'raises HttpRequestError on server error' do
+    it 'raises ServerError on server error' do
       stub_request(:get, "#{base_url}/stats")
         .with(query: { 'from' => from_date, 'to' => to_date })
         .to_return(
@@ -239,7 +239,7 @@ RSpec.describe Lettermint::Resources::Stats do
           headers: { 'Content-Type' => 'application/json' }
         )
 
-      expect { stats.get(from: from_date, to: to_date) }.to raise_error(Lettermint::HttpRequestError)
+      expect { stats.get(from: from_date, to: to_date) }.to raise_error(Lettermint::ServerError)
     end
   end
 end
