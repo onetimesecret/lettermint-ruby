@@ -1,6 +1,6 @@
 # Lettermint Ruby SDK Reference
 
-`gem 'lettermint'` v0.2.0 · Ruby >= 3.2
+`gem 'lettermint'` v0.2.1 · Ruby >= 3.2
 
 ---
 
