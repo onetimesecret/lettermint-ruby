@@ -371,6 +371,7 @@ rescue Lettermint::RateLimitError => e
 rescue Lettermint::ValidationError => e
   # 422 errors (e.g., daily limit exceeded)
   puts "Validation error: #{e.error_type}"
+  puts "Field errors: #{e.errors}" if e.errors  # e.g. {"subject" => ["The subject field is required."]}
   puts "Response: #{e.response_body}"
 rescue Lettermint::ClientError => e
   # 400 errors
@@ -379,6 +380,12 @@ rescue Lettermint::NotFoundError => e
   # 404 errors
   puts "Not found: #{e.code}"       # e.g. "RESOURCE_NOT_FOUND" (may be nil)
   puts "Details: #{e.details}"     # Hash, Array or nil
+rescue Lettermint::ConflictError => e
+  # 409 errors (the request conflicts with the resource's current state)
+  puts "Conflict: #{e.message}"
+rescue Lettermint::ServerError => e
+  # 500–599 errors. The SDK does not retry; retry_after is seconds or nil.
+  puts "Server error #{e.status_code}, retry after: #{e.retry_after.inspect}"
 rescue Lettermint::TimeoutError => e
   # Request timeout
   puts "Timeout: #{e.message}"

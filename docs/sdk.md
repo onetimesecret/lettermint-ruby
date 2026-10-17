@@ -1,6 +1,6 @@
 # Lettermint Ruby SDK Reference
 
-`gem 'lettermint'` v0.2.0 · Ruby >= 3.2
+`gem 'lettermint'` v0.2.2 · Ruby >= 3.2
 
 ---
 
@@ -376,6 +376,7 @@ rescue Lettermint::ValidationError => e
   e.message        # Error message
   e.status_code    # 422
   e.error_type     # Validation error type (same as e.code for ApiError bodies)
+  e.errors         # {"<field>" => ["<msg>", ...]} or nil
   e.response_body  # Raw response
 rescue Lettermint::ClientError => e
   e.status_code    # 400
@@ -385,7 +386,13 @@ rescue Lettermint::NotFoundError => e
   e.status_code    # 404
   e.code           # e.g. "RESOURCE_NOT_FOUND" (may be nil)
   e.details        # Hash, Array or nil; shape depends on code
+rescue Lettermint::ConflictError => e
+  e.status_code    # 409
+  e.code           # API error code string (may be nil)
 rescue Lettermint::RateLimitError => e
+  e.retry_after    # Seconds to wait (may be nil)
+rescue Lettermint::ServerError => e
+  e.status_code    # 500–599
   e.retry_after    # Seconds to wait (may be nil)
 rescue Lettermint::TimeoutError
   # Request timed out
@@ -427,11 +434,13 @@ end
 ```
 Lettermint::Error
 ├── HttpRequestError (status_code, response_body, code, details)
-│   ├── ValidationError (422, error_type)
+│   ├── ValidationError (422, error_type, errors)
 │   ├── ClientError (400)
 │   ├── AuthenticationError (401/403)
 │   ├── NotFoundError (404)
-│   └── RateLimitError (429, retry_after)
+│   ├── ConflictError (409)
+│   ├── RateLimitError (429, retry_after)
+│   └── ServerError (500–599, retry_after)
 ├── TimeoutError
 ├── ConnectionError (original_exception)
 ├── ResponseParsingError (original_exception)
@@ -441,17 +450,34 @@ Lettermint::Error
     └── WebhookJsonDecodeError (original_exception)
 ```
 
+Any other error status (for example 405, or 600 and above) raises plain `HttpRequestError`.
+
 ### Error Bodies
 
-`HttpRequestError` and its subclasses read three JSON body shapes, matching the official Lettermint SDKs:
+`HttpRequestError` and its subclasses read these JSON body shapes, matching the official Lettermint SDKs:
 
 | Body | Sets |
 |------|------|
 | `{"error":{"code":"...","message":"...","details":...}}` | `code`, `message`, `details` |
 | `{"error":"<string>"}` | `code` |
 | `{"message":"<string>"}` | `message` |
+| `{"message":"<string>","errors":{"<field>":["<msg>",...]}}` (422) | `message`, `ValidationError#errors` |
 
 `message` resolves in order: `error.message`, top-level `message`, then `"HTTP <status>"`.
+
+`ValidationError#errors` is nil when the body has no `errors` key or `errors` is not a JSON object.
+
+### Retry-After
+
+`RateLimitError#retry_after` and `ServerError#retry_after` are read from the `Retry-After` response header:
+
+| Header value | `retry_after` |
+|--------------|---------------|
+| `120` (integer seconds, parsed with `Integer()`) | `120`; other values `Integer()` accepts, such as `-5`, pass through as-is |
+| `Wed, 21 Oct 2026 07:28:00 GMT` (HTTP-date, RFC 9110) | Whole seconds from now until that time, rounded up; `0` if it has passed |
+| Missing, or neither an integer nor an HTTP-date | `nil` |
+
+The SDK does not retry requests. Use `retry_after` in your own retry logic.
 
 `response_body` is the parsed Hash for JSON responses, the stripped String for non-JSON responses (for example an HTML 404 page from a proxy), and nil for an empty body.
 
