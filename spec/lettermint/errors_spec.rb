@@ -199,9 +199,9 @@ RSpec.describe 'Lettermint error hierarchy' do
 
   describe Lettermint::ErrorBody do
     describe '.parse' do
-      it 'extracts message, code and details from an ApiError body' do
+      it 'extracts message and code from an ApiError body with no details key' do
         body = JSON.parse(fixture('errors/not_found_api_error.json'))
-        expect(described_class.parse(404, body)).to eq(['Domain not found.', 'RESOURCE_NOT_FOUND', nil])
+        expect(described_class.parse(404, body)).to eq(['Resource not found.', 'RESOURCE_NOT_FOUND', nil])
       end
 
       it 'passes ApiError details through untouched' do
@@ -214,9 +214,15 @@ RSpec.describe 'Lettermint error hierarchy' do
         expect(described_class.parse(404, body)).to eq(['HTTP 404', 'not_found', nil])
       end
 
-      it 'uses the top-level message from an ErrorMessage body' do
+      it 'uses the top-level message from a router 404 ErrorMessage body' do
         body = JSON.parse(fixture('errors/not_found_error_message.json'))
-        expect(described_class.parse(404, body)).to eq(['Domain not found.', nil, nil])
+        expected = ['The route v1/this-route-does-not-exist could not be found.', nil, nil]
+        expect(described_class.parse(404, body)).to eq(expected)
+      end
+
+      it 'falls back to HTTP <status> for a blank ErrorMessage body' do
+        body = JSON.parse(fixture('errors/unauthorized_empty_message.json'))
+        expect(described_class.parse(401, body)).to eq(['HTTP 401', nil, nil])
       end
 
       it 'prefers the ApiError message over a top-level message' do

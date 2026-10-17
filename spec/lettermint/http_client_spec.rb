@@ -204,20 +204,37 @@ RSpec.describe Lettermint::HttpClient do
         }
     end
 
-    it 'raises AuthenticationError with code from an ApiError body' do
-      stub_request(:post, "#{base_url}/send")
+    it 'raises AuthenticationError with code UNAUTHORIZED when the token header is missing' do
+      stub_request(:get, "#{base_url}/domains")
         .to_return(
           status: 401,
-          body: '{"error":{"code":"UNAUTHENTICATED","message":"Invalid API token.","details":null}}',
+          body: fixture('errors/unauthorized_api_error.json'),
           headers: { 'Content-Type' => 'application/json' }
         )
 
-      expect { client.post(path: '/send', data: {}) }
+      expect { client.get(path: '/domains') }
         .to raise_error(Lettermint::AuthenticationError) { |e|
           expect(e.status_code).to eq(401)
-          expect(e.code).to eq('UNAUTHENTICATED')
-          expect(e.message).to eq('Invalid API token.')
+          expect(e.code).to eq('UNAUTHORIZED')
+          expect(e.message).to eq('Missing API token')
           expect(e.details).to be_nil
+        }
+    end
+
+    it 'raises AuthenticationError with the HTTP 401 fallback when the token is invalid and message is blank' do
+      stub_request(:get, "#{base_url}/domains")
+        .to_return(
+          status: 401,
+          body: fixture('errors/unauthorized_empty_message.json'),
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect { client.get(path: '/domains') }
+        .to raise_error(Lettermint::AuthenticationError) { |e|
+          expect(e.status_code).to eq(401)
+          expect(e.message).to eq('HTTP 401')
+          expect(e.code).to be_nil
+          expect(e.response_body).to eq({ 'message' => '' })
         }
     end
 
@@ -330,14 +347,14 @@ RSpec.describe Lettermint::HttpClient do
     end
 
     context 'on 404' do
-      let(:path) { '/domains/dom_missing' }
+      let(:path) { '/domains/dom_0000000000000000' }
 
       def stub_not_found(body, content_type: 'application/json')
         stub_request(:get, "#{base_url}#{path}")
           .to_return(status: 404, body: body, headers: { 'Content-Type' => content_type })
       end
 
-      it 'raises NotFoundError with code and message from an ApiError body' do
+      it 'raises NotFoundError with code RESOURCE_NOT_FOUND for a missing resource' do
         body = fixture('errors/not_found_api_error.json')
         stub_not_found(body)
 
@@ -345,9 +362,10 @@ RSpec.describe Lettermint::HttpClient do
           .to raise_error(Lettermint::NotFoundError) { |e|
             expect(e.status_code).to eq(404)
             expect(e.code).to eq('RESOURCE_NOT_FOUND')
-            expect(e.message).to eq('Domain not found.')
+            expect(e.message).to eq('Resource not found.')
             expect(e.details).to be_nil
             expect(e.response_body).to eq(JSON.parse(body))
+            expect(e.response_body['error']).not_to have_key('details')
           }
       end
 
@@ -362,15 +380,19 @@ RSpec.describe Lettermint::HttpClient do
           }
       end
 
-      it 'raises NotFoundError with message only from an ErrorMessage body' do
-        stub_not_found(fixture('errors/not_found_error_message.json'))
+      context 'for an unknown route' do
+        let(:path) { '/this-route-does-not-exist' }
 
-        expect { client.get(path: path) }
-          .to raise_error(Lettermint::NotFoundError) { |e|
-            expect(e.message).to eq('Domain not found.')
-            expect(e.code).to be_nil
-            expect(e.details).to be_nil
-          }
+        it 'raises NotFoundError with no code from the router ErrorMessage body' do
+          stub_not_found(fixture('errors/not_found_error_message.json'))
+
+          expect { client.get(path: path) }
+            .to raise_error(Lettermint::NotFoundError) { |e|
+              expect(e.message).to eq('The route v1/this-route-does-not-exist could not be found.')
+              expect(e.code).to be_nil
+              expect(e.details).to be_nil
+            }
+        end
       end
 
       it 'raises NotFoundError with the raw HTML when a proxy answers with text/html' do
