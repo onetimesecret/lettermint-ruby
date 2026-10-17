@@ -14,7 +14,7 @@ module Lettermint
       # @param value [String, nil] Filter by suppression value (email/domain/extension)
       # @param reason [String, nil] Filter: spam_complaint, hard_bounce, unsubscribe, manual
       # @return [Hash] Paginated list of suppressions
-      # rubocop:disable Metrics/ParameterLists
+      # rubocop:disable-next Metrics/ParameterLists
       def list(page_size: nil, page_cursor: nil, sort: nil, scope: nil,
                route_id: nil, project_id: nil, value: nil, reason: nil)
         params = build_params(
@@ -29,7 +29,6 @@ module Lettermint
         )
         @http_client.get(path: '/suppressions', params: params)
       end
-      # rubocop:enable Metrics/ParameterLists
 
       # Create a suppression entry.
       # @param reason [String] Reason: spam_complaint, hard_bounce, unsubscribe, manual

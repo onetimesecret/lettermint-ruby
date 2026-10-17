@@ -4,7 +4,7 @@
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-red?style=flat-square)](https://www.ruby-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/onetimesecret/lettermint-ruby/blob/main/LICENSE)
 
-Unofficial Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
+An unofficial but orthodox Ruby SDK for the [Lettermint](https://lettermint.co) transactional email API. Based on the official [Python SDK](https://github.com/lettermint/lettermint-python).
 
 The SDK provides two API clients:
 
@@ -375,6 +375,10 @@ rescue Lettermint::ValidationError => e
 rescue Lettermint::ClientError => e
   # 400 errors
   puts "Client error: #{e.message}"
+rescue Lettermint::NotFoundError => e
+  # 404 errors
+  puts "Not found: #{e.code}"       # e.g. "RESOURCE_NOT_FOUND" (may be nil)
+  puts "Details: #{e.details}"     # Hash, Array or nil
 rescue Lettermint::TimeoutError => e
   # Request timeout
   puts "Timeout: #{e.message}"
@@ -383,8 +387,8 @@ rescue Lettermint::ConnectionError => e
   puts "Connection error: #{e.message}"
   puts "Original: #{e.original_exception}" if e.original_exception
 rescue Lettermint::HttpRequestError => e
-  # Other HTTP errors
-  puts "HTTP error #{e.status_code}: #{e.message}"
+  # Other HTTP errors. `code` and `details` are available on every HTTP error.
+  puts "HTTP error #{e.status_code}: #{e.message} (#{e.code})"
 end
 ```
 

@@ -4,11 +4,15 @@ module Lettermint
   class Error < StandardError; end
 
   class HttpRequestError < Error
-    attr_reader :status_code, :response_body
+    # code: the API error code string, when the response carried one.
+    # details: Hash, Array or nil; the shape depends on code.
+    attr_reader :status_code, :response_body, :code, :details
 
-    def initialize(message:, status_code:, response_body: nil)
+    def initialize(message:, status_code:, response_body: nil, code: nil, details: nil)
       @status_code = status_code
       @response_body = response_body
+      @code = code
+      @details = details
       super(message)
     end
   end
@@ -16,20 +20,26 @@ module Lettermint
   class ValidationError < HttpRequestError
     attr_reader :error_type
 
-    def initialize(message:, error_type:, response_body: nil)
+    def initialize(message:, error_type:, response_body: nil, code: nil, details: nil)
       @error_type = error_type
-      super(message: message, status_code: 422, response_body: response_body)
+      super(message: message, status_code: 422, response_body: response_body, code: code, details: details)
     end
   end
 
   class ClientError < HttpRequestError
-    def initialize(message:, response_body: nil)
-      super(message: message, status_code: 400, response_body: response_body)
+    def initialize(message:, response_body: nil, code: nil, details: nil)
+      super(message: message, status_code: 400, response_body: response_body, code: code, details: details)
+    end
+  end
+
+  class NotFoundError < HttpRequestError
+    def initialize(message:, response_body: nil, code: nil, details: nil)
+      super(message: message, status_code: 404, response_body: response_body, code: code, details: details)
     end
   end
 
   class AuthenticationError < HttpRequestError
-    def initialize(message:, status_code:, response_body: nil)
+    def initialize(message:, status_code:, response_body: nil, code: nil, details: nil)
       super
     end
   end
@@ -37,9 +47,47 @@ module Lettermint
   class RateLimitError < HttpRequestError
     attr_reader :retry_after
 
-    def initialize(message:, retry_after: nil, response_body: nil)
+    def initialize(message:, retry_after: nil, response_body: nil, code: nil, details: nil)
       @retry_after = retry_after
-      super(message: message, status_code: 429, response_body: response_body)
+      super(message: message, status_code: 429, response_body: response_body, code: code, details: details)
+    end
+  end
+
+  # Extracts [message, code, details] from an error response body, mirroring the
+  # official Node and Python SDKs. Only a Hash body is inspected; any other body
+  # yields "HTTP <status>" with no code or details.
+  # @api private
+  module ErrorBody
+    module_function
+
+    def parse(status, body)
+      message, code, details = body.is_a?(Hash) ? fields_from(body) : []
+      message = "HTTP #{status}" if blank?(message)
+      [message, code, details]
+    end
+
+    def fields_from(body)
+      error = body['error']
+      message, code, details = fields_from_error(error)
+      message = body['message'] if blank?(message) && body['message'].is_a?(String)
+      [message, code, details]
+    end
+
+    # A String `error` is a code, never a message.
+    def fields_from_error(error)
+      case error
+      when Hash then [string_or_nil(error['message']), string_or_nil(error['code']), error['details']]
+      when String then [nil, error, nil]
+      else []
+      end
+    end
+
+    def string_or_nil(value)
+      value.is_a?(String) ? value : nil
+    end
+
+    def blank?(value)
+      value.nil? || value.strip.empty?
     end
   end
 

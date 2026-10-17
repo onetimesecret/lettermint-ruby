@@ -82,34 +82,42 @@ module Lettermint
     def handle_response(response)
       return response.body if response.success?
 
-      body = response.body.is_a?(Hash) ? response.body : nil
-      raise_api_error(response.status, body, response.headers)
+      raise build_error(response.status, normalize_body(response.body), response.headers)
     end
 
-    def raise_api_error(status, body, headers)
-      raise build_error(status, body, headers)
+    # Hash stays Hash; String is stripped (nil when empty); anything else passes through as parsed.
+    def normalize_body(body)
+      return body unless body.is_a?(String)
+
+      stripped = body.strip
+      stripped.empty? ? nil : stripped
     end
 
-    def build_error(status, body, headers) # rubocop:disable Metrics
-      msg = ->(key, fallback) { body&.dig(key) || fallback }
+    def build_error(status, body, headers)
+      message, code, details = ErrorBody.parse(status, body)
+      common = { message: message, response_body: body, code: code, details: details }
 
       case status
-      when 401, 403
-        AuthenticationError.new(message: msg['message', "HTTP #{status}"],
-                                status_code: status, response_body: body)
-      when 400
-        ClientError.new(message: msg['error', 'Unknown client error'], response_body: body)
-      when 422
-        ValidationError.new(message: msg['message', 'Validation error'],
-                            error_type: msg['error', 'ValidationError'], response_body: body)
-      when 429
-        retry_after = headers && headers['Retry-After'] && Integer(headers['Retry-After'], exception: false)
-        RateLimitError.new(message: msg['message', 'Rate limit exceeded'],
-                           retry_after: retry_after, response_body: body)
-      else
-        HttpRequestError.new(message: msg['message', "HTTP #{status}"],
-                             status_code: status, response_body: body)
+      when 401, 403 then AuthenticationError.new(status_code: status, **common)
+      when 400 then ClientError.new(**common)
+      when 404 then NotFoundError.new(**common)
+      when 422 then ValidationError.new(error_type: validation_error_type(body, code), **common)
+      when 429 then RateLimitError.new(retry_after: retry_after_from(headers), **common)
+      else HttpRequestError.new(status_code: status, **common)
       end
+    end
+
+    # A String `error` is kept verbatim; a Hash `error` contributes its code.
+    def validation_error_type(body, code)
+      error = body.is_a?(Hash) ? body['error'] : nil
+      return error if error.is_a?(String)
+
+      code || 'ValidationError'
+    end
+
+    def retry_after_from(headers)
+      value = headers && headers['Retry-After']
+      value && Integer(value, exception: false)
     end
   end
 end

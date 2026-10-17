@@ -1,0 +1,109 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lettermint Team API",
+    "version": "0.0.1"
+  },
+  "paths": {
+    "/domains/{domainId}": {
+      "get": {
+        "responses": {
+          "404": {
+            "description": "Not found\n\nError code `RESOURCE_NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorMessage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "description": "Structured API error.",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Machine-readable error code, for example `RESOURCE_NOT_FOUND`."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error message."
+              },
+              "details": {
+                "description": "Additional context. Its shape depends on the error code.",
+                "type": [
+                  "object",
+                  "array",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ApiError"
+      },
+      "ErrorMessage": {
+        "type": "object",
+        "description": "Error with only a message.",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Error overview."
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ErrorMessage"
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Errors overview."
+          },
+          "errors": {
+            "type": "object",
+            "description": "A detailed description of each field that failed validation.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "message",
+          "errors"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

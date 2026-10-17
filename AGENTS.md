@@ -1,10 +1,10 @@
-# CLAUDE.md
+# AGENTS.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project
 
-Lettermint Ruby SDK (`lettermint` gem, v0.1.0) — a client library for the Lettermint transactional email API. Ruby >= 3.2, MIT license.
+Lettermint Ruby SDK (`lettermint` gem, pre-v1.0) — a client library for the Lettermint transactional email API. Ruby >= 3.2, MIT license.
 
 ## Commands
 
@@ -41,10 +41,11 @@ The SDK has two independent subsystems sharing a common error hierarchy:
 **Error hierarchy:**
 ```
 Error
-├── HttpRequestError (has status_code, response_body)
+├── HttpRequestError (has status_code, response_body, code, details)
 │   ├── ValidationError (422, has error_type)
 │   ├── ClientError (400)
 │   ├── AuthenticationError (401/403)
+│   ├── NotFoundError (404)
 │   └── RateLimitError (429, has retry_after)
 ├── TimeoutError
 ├── ConnectionError (has original_exception)
@@ -68,3 +69,9 @@ Error
 - `frozen_string_literal: true` on every file
 - Keyword arguments for constructors (`api_token:`, `secret:`, etc.)
 - All HTTP errors are raised as typed exceptions, never raw Faraday errors
+
+## Terms and phrases to avoid
+
+Do not use any of the following terms or phrases or sentence structures:
+- holds, claims, lands, carries
+- "A isn't only B, but also C"

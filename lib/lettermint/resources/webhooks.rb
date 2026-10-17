@@ -13,7 +13,7 @@ module Lettermint
       # @param route_id [String, nil] Filter by route ID
       # @param search [String, nil] Search filter
       # @return [Hash] Paginated list of webhooks
-      # rubocop:disable Metrics/ParameterLists
+      # rubocop:disable-next Metrics/ParameterLists
       def list(page_size: nil, page_cursor: nil, sort: nil, enabled: nil,
                event: nil, route_id: nil, search: nil)
         params = build_params(
@@ -27,7 +27,6 @@ module Lettermint
         )
         @http_client.get(path: '/webhooks', params: params)
       end
-      # rubocop:enable Metrics/ParameterLists
 
       # Create a new webhook.
       # @param route_id [String] Route ID to attach webhook to
@@ -96,7 +95,7 @@ module Lettermint
       # @param from_date [String, nil] Filter from date (Y-m-d)
       # @param to_date [String, nil] Filter to date (Y-m-d)
       # @return [Hash] Paginated list of deliveries
-      # rubocop:disable Metrics/ParameterLists
+      # rubocop:disable-next Metrics/ParameterLists
       def deliveries(webhook_id, page_size: nil, page_cursor: nil, sort: nil,
                      status: nil, event_type: nil, from_date: nil, to_date: nil)
         params = build_params(
@@ -110,7 +109,6 @@ module Lettermint
         )
         @http_client.get(path: "/webhooks/#{webhook_id}/deliveries", params: params)
       end
-      # rubocop:enable Metrics/ParameterLists
 
       # Get a specific delivery.
       # @param webhook_id [String] Webhook ID

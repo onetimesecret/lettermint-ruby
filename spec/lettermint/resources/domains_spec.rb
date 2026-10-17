@@ -300,7 +300,7 @@ RSpec.describe Lettermint::Resources::Domains do
       expect(result['dnsRecordsExists']).to eq(true)
     end
 
-    it 'raises HttpRequestError for non-existent domain' do
+    it 'raises NotFoundError for non-existent domain' do
       stub_request(:get, "#{base_url}/domains/nonexistent")
         .to_return(
           status: 404,
@@ -308,7 +308,7 @@ RSpec.describe Lettermint::Resources::Domains do
           headers: { 'Content-Type' => 'application/json' }
         )
 
-      expect { domains.find('nonexistent') }.to raise_error(Lettermint::HttpRequestError)
+      expect { domains.find('nonexistent') }.to raise_error(Lettermint::NotFoundError)
     end
   end
 
