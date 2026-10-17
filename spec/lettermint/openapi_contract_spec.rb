@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'json'
 
 RSpec.describe 'Lettermint Team OpenAPI error contract' do
-  let(:document) { JSON.parse(fixture('openapi/lettermint-team-openapi.json')) }
+  let(:document) { JSON.parse(fixture('openapi/error-schemas.json')) }
   let(:schemas) { document.fetch('components').fetch('schemas') }
 
   describe 'ApiError schema' do

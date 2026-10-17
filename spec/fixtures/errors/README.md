@@ -38,4 +38,4 @@ specs that assert `details` is `nil` prove absent-key handling rather than expli
 The blank `message` on the invalid-token 401 exercises the blank-message fallback: the gem raises
 `AuthenticationError` with message `"HTTP 401"` and `code nil`.
 
-The pinned OpenAPI document lives in `../openapi/`.
+The OpenAPI error schema extract lives in `../openapi/`.
