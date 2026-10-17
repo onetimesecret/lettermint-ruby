@@ -18,7 +18,7 @@ module Lettermint
       # @param from_date [String, nil] Filter from date (Y-m-d)
       # @param to_date [String, nil] Filter to date (Y-m-d)
       # @return [Hash] Paginated list of messages
-      # rubocop:disable Metrics/ParameterLists
+      # rubocop:disable-next Metrics/ParameterLists
       def list(page_size: nil, page_cursor: nil, sort: nil, type: nil, status: nil,
                route_id: nil, domain_id: nil, tag: nil, from_email: nil, subject: nil,
                from_date: nil, to_date: nil)
@@ -38,7 +38,6 @@ module Lettermint
         )
         @http_client.get(path: '/messages', params: params)
       end
-      # rubocop:enable Metrics/ParameterLists
 
       # Get message details.
       # @param id [String] Message ID

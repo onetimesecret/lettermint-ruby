@@ -21,7 +21,7 @@ module Lettermint
       # @param is_default [Boolean, nil] Filter by default route status
       # @param search [String, nil] Search filter
       # @return [Hash] Paginated list of routes
-      # rubocop:disable Metrics/ParameterLists
+      # rubocop:disable-next Metrics/ParameterLists
       def list(page_size: nil, page_cursor: nil, sort: nil, route_type: nil,
                is_default: nil, search: nil)
         raise ArgumentError, 'project_id required for listing routes' unless @project_id
@@ -36,7 +36,6 @@ module Lettermint
         )
         @http_client.get(path: "/projects/#{@project_id}/routes", params: params)
       end
-      # rubocop:enable Metrics/ParameterLists
 
       # Create a new route in a project.
       # Requires project_id to be set.
